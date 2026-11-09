@@ -36,6 +36,11 @@ CLEANER = nh3.Cleaner(
 
 _BLOCK_TAG = re.compile(r"<(p|div|ul|ol|blockquote|h[1-6]|pre|table)[\s>]", re.IGNORECASE)
 _BLANK_LINES = re.compile(r"\n\s*\n")
+# Tags that end a run of text. Stripping them without a space would glue
+# "agents.</p><p>Acme" into "agents.Acme".
+_TEXT_BREAK = re.compile(
+    r"<(/?(?:p|div|br|li|ul|ol|blockquote|h[1-6]|pre|table|tr|td|th)\b)", re.IGNORECASE
+)
 _SHORTCODE = re.compile(r"\[/?[a-z][a-z0-9_-]*(\s[^\]]*)?\]", re.IGNORECASE)
 
 
@@ -60,7 +65,8 @@ def autop(source: str) -> str:
 
 def to_plain_text(source: str) -> str:
     """Text with tags removed and entities decoded. Autoescaped on output."""
-    return " ".join(html.unescape(nh3.clean(source, tags=set())).split())
+    spaced = _TEXT_BREAK.sub(r" <\1", source)
+    return " ".join(html.unescape(nh3.clean(spaced, tags=set())).split())
 
 
 def first_words(text: str, count: int, max_length: int) -> str:

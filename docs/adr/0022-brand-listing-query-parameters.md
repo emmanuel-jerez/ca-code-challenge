@@ -1,6 +1,6 @@
 # 0022. Brand listing query parameters
 
-- Status: Accepted
+- Status: Accepted (`page_size` parsing refined in [0027](0027-pillar-2-listing-contract-details.md), item 7)
 - Date: 2026-11-09
 
 ## Context

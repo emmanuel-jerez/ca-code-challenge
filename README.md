@@ -10,11 +10,12 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 ## Project status (2026-11-09)
 
-**Pillar 1 (the Django app) is built; Pillars 2–6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
+**Pillars 1 and 2 (the Django app and its brand listing API) are built; Pillars 3–6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
 
 ### Done
 
 - **Pillar 1: Django app** in [main-app/](main-app/): models, the re-runnable WordPress import, and the homepage, brand and review pages. See [Main app](#main-app-pillar-1) below.
+- **Pillar 2: `GET /api/brands/`**: filtered, sorted and paginated brand cards, plus a contract fixture for the frontend. See [Brand listing API](#brand-listing-api-pillar-2) below.
 - **Agent guidance.**
   - [AGENTS.md](AGENTS.md) (loaded through `CLAUDE.md`) holds the project rules, each with its reason: the accepted stack, security rules, code style, and the auth and frontend rules.
   - Project skills live in `.agents/skills/`. Run `make skills` once per checkout so Claude Code can load them.
@@ -26,7 +27,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - one deeper note per pillar ([1](docs/research/pillar-1-django-backend.md), [2](docs/research/pillar-2-brands-api.md), [3](docs/research/pillar-3-brandlist-component.md), [4](docs/research/pillar-4-scss-architecture.md), [5](docs/research/pillar-5-auth-service.md), [6](docs/research/pillar-6-shared-library.md)).
 
   Every option is weighed by its security cost and its long-term stability, and data facts are measured from `db/dump.sql`.
-- **Decision records.** [docs/adr/](docs/adr/README.md) holds 27 records (0000–0026). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
+- **Decision records.** [docs/adr/](docs/adr/README.md) holds 28 records (0000–0027). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
   - **Stack:**
     - Django 5.2 LTS on Python 3.14, with a security floor (`>=5.2.18`);
     - DRF, JSON only;
@@ -48,7 +49,11 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - **Pillar 2:**
     - repeated `industry` keys;
     - a closed `ordering` enum that always ends in `id`;
-    - `page_size` from 1 to 50 (default 12).
+    - `page_size` from 1 to 50 (default 12);
+    - the top review is the highest-rated, then newest;
+    - an unknown industry is a 400, while unknown parameter names are ignored;
+    - DRF's default error bodies, no URL version, additive changes only;
+    - a contract fixture with named cases.
   - **Pillar 3/4:**
     - BEM with `l-`/`c-`/`u-` prefixes;
     - `<BrandList />` styled by a global partial;
@@ -69,7 +74,6 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 | Deliverable | State |
 |---|---|
-| Pillar 2: `GET /api/brands/` (filter, sort, paginate) | Not started |
 | Pillar 3: React `<BrandList />` | Not started |
 | Pillar 4: SCSS source tree under `frontend/scss/` | Not started |
 | Pillar 5: auth service (users, login, roles, JWKS) and the editor-only `PATCH /api/brands/<slug>/` | Not started |
@@ -79,9 +83,8 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 | CI | None |
 
 Still open, with options in the research notes:
-- whether an unknown industry slug gets 400 or an empty page;
-- what the "top review" snippet is;
-- the API error format, versioning and `PATCH` concurrency;
+- how `<BrandList />` gets the list of industries for its filter (a second endpoint, or a list in the frontend; ADR 0027);
+- `PATCH` concurrency;
 - whether the auth service has an admin;
 - extra pnpm hardening.
 
@@ -147,6 +150,62 @@ One test runs the real import against the WordPress MariaDB, checking the counts
 
 **AI defaults accepted** (ADR 0026, items 5–10): skipping unchanged rows by comparing stored values instead of a hash column; any bad row stops the run instead of being skipped; function views; no `/brand/`, `/review/` or `/about/` pages yet, so the nav shows only Home; no `django.contrib.auth` or admin in the main app.
 
+## Brand listing API (Pillar 2)
+
+`GET /api/brands/` serves the data behind `<BrandList />`: published brands as cards, 12 per page by default. It's public and JSON only.
+
+```bash
+curl 'http://localhost:8000/api/brands/?industry=finance&industry=telecom&ordering=-review_count&page_size=2'
+```
+
+| Parameter | Values | Default |
+|---|---|---|
+| `industry` | An industry slug. Repeat it for several (`?industry=a&industry=b`), meaning any of them; at most 10 | All industries |
+| `ordering` | `-average_rating`, `average_rating`, `-review_count`, `review_count` | `-average_rating` |
+| `page_size` | 1–50 | 12 |
+| `page` | 1, 2, … | 1 |
+
+The response is DRF's page envelope. Each row has what a card needs:
+
+```json
+{
+  "count": 5,
+  "next": "http://localhost:8000/api/brands/?page=2&page_size=2",
+  "previous": null,
+  "results": [
+    {
+      "slug": "acme-insurance",
+      "name": "Acme Insurance Co.",
+      "industry": {"slug": "insurance", "name": "Insurance"},
+      "average_rating": 3.92,
+      "review_count": 12,
+      "short_description": "Acme Insurance is a long-running general-lines insurer…",
+      "top_review": {
+        "slug": "umbrella-policy-was-easy-to-add",
+        "title": "Umbrella policy was easy to add",
+        "rating": 5,
+        "reviewer_name": "Sarah K.",
+        "snippet": "Added a $1M umbrella policy. The process was completely painless…"
+      }
+    }
+  ]
+}
+```
+
+- **Ratings** are computed from published reviews (ADR 0019). `average_rating` is a JSON number, or `null` for a brand with no reviews; such brands sort last in both directions. Every ordering ends in `id`, so pages never repeat or skip a brand.
+- **The top review** is the brand's highest-rated published review, then the newest, then the last added. A 3-star brand still quotes its best review; the review closest to the average was the alternative (ADR 0027). The `snippet` is plain text, cut to 160 characters.
+- **Errors.** An unknown `ordering`, an unknown industry slug or a `page_size` outside 1–50 gets a 400 with a message per parameter, for example `{"ordering": ["\"name\" is not a valid choice."]}`. An empty `ordering` or `page_size` counts as a bad value, not as "use the default"; a repeated one uses its last value. `page` follows DRF: empty means 1, `last` means the last page, and anything else that isn't a page number, or is past the end, gets a 404. Parameter names the API doesn't know are ignored, so a newer client keeps working against an older server.
+- **Caching.** Responses carry an ETag and `Cache-Control: public, no-cache`, so a repeat request for an unchanged page gets a 304. There's no server-side cache.
+- **Cost.** A page is three queries whatever its size (count, brands, top reviews), plus one to check the industry slugs when filtering. Tests pin this.
+- **Compatibility.** The URL has no version. Changes are additive only; a breaking change would add `/api/v2/brands/` and keep this one until clients move.
+
+**The contract with the frontend** (ADR 0010): a pytest test writes real responses to [contracts/brand-list.example.json](contracts/brand-list.example.json). It has one case per shape the UI must handle: rows with every field set, an unrated brand, markup-like text in a snippet, first and last pages, an empty page, a 400 and a 404. The test fails when the API drifts from the committed file. After an intended change, run `make contracts` and commit the result. Pillar 3's Vitest test parses the same file with the Zod schema.
+
+**AI defaults accepted** (ADR 0027, items 7–9):
+- the query serializer is the only parser of `page_size`, so DRF can't clamp a value the serializer rejected;
+- ETag revalidation instead of a server-side cache;
+- no throttling in the app, because DRF's is per process and not a security control.
+
 ## The WordPress source site
 
 Self-contained, reproducible WordPress site used as the migration source.
@@ -190,6 +249,7 @@ docker-compose.yml          # the stack
 Makefile                    # make targets
 db/dump.sql                 # seeded database snapshot
 db/initdb/                  # MariaDB init script for the read-only import user
+contracts/                  # API responses the frontend's schema is tested against
 main-app/                   # the Django app (Pillar 1)
 scripts/seed.sh             # bootstrap script (install + plugins + seed)
 wp-content/plugins/         # WP default plugins + ACF + Yoast (committed for offline reproducibility)
