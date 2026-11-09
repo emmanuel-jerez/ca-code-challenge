@@ -2,11 +2,11 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 WPCLI := $(COMPOSE) run --rm wpcli
 
-.PHONY: help up down restart logs reset wp bootstrap dump status skills
+.PHONY: help up down restart logs reset wp bootstrap dump status skills wp-import-user import import-dry-run test
 
 help:
 	@echo "Targets:"
-	@echo "  up              Start db + wordpress + phpmyadmin"
+	@echo "  up              Start db + wordpress + phpmyadmin + main app"
 	@echo "  down            Stop containers (preserve data)"
 	@echo "  reset           Stop containers AND wipe DB volume (full cold start on next 'up')"
 	@echo "  logs            Tail wordpress + db logs"
@@ -15,9 +15,13 @@ help:
 	@echo "  dump            Export current DB to db/dump.sql"
 	@echo "  status          Show running services"
 	@echo "  skills          Link .agents/skills into .claude/skills for Claude Code"
+	@echo "  wp-import-user  Create the read-only MariaDB user on an existing db volume"
+	@echo "  import          Import WordPress content into the main app (safe to re-run)"
+	@echo "  import-dry-run  Same checks and counts, then roll back"
+	@echo "  test            Run the main app's tests (needs main-db running)"
 
 up:
-	$(COMPOSE) up -d db wordpress phpmyadmin
+	$(COMPOSE) up -d db wordpress phpmyadmin main-db main-app
 
 down:
 	$(COMPOSE) down
@@ -45,3 +49,16 @@ status:
 
 skills:
 	./scripts/link-agent-skills.sh
+
+wp-import-user:
+	$(COMPOSE) up -d db
+	$(COMPOSE) exec db bash /docker-entrypoint-initdb.d/02-wp-import-user.sh
+
+import:
+	$(COMPOSE) run --rm --build wp-import
+
+import-dry-run:
+	$(COMPOSE) run --rm --build wp-import sh -c "python manage.py migrate --noinput && python manage.py import_wp --dry-run"
+
+test:
+	cd main-app && uv run pytest

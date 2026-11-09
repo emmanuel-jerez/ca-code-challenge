@@ -33,6 +33,7 @@ original's status line (0018).
 | [0023](0023-scss-naming-and-brandlist-styling.md) | SCSS naming, `<BrandList />` styling, Sass as the linter | Accepted |
 | [0024](0024-imported-passwords-and-hashing.md) | Imported passwords and password hashing | Accepted |
 | [0025](0025-shared-library-packaging.md) | Shared library packaging, name and upgrade path | Accepted |
+| [0026](0026-pillar-1-import-and-pages.md) | Pillar 1: industry FK, removals, sanitizing, writes, views | Accepted |
 
 Template: Status · Date · Context · Options considered · Decision · Consequences ·
 Revisit when · Sources.

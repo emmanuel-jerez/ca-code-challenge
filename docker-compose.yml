@@ -7,9 +7,16 @@ services:
       MYSQL_DATABASE: ${WORDPRESS_DB_NAME:-wp}
       MYSQL_USER: ${WORDPRESS_DB_USER:-wp}
       MYSQL_PASSWORD: ${WORDPRESS_DB_PASSWORD:-wp}
+      # Read-only user for the Django importer (db/initdb/02-wp-import-user.sh).
+      WP_IMPORT_DB_USER: ${WP_IMPORT_DB_USER:-wp_import}
+      WP_IMPORT_DB_PASSWORD: ${WP_IMPORT_DB_PASSWORD:-wp_import}
     volumes:
       - db_data:/var/lib/mysql
       - ./db/dump.sql:/docker-entrypoint-initdb.d/01-dump.sql:ro
+      - ./db/initdb/02-wp-import-user.sh:/docker-entrypoint-initdb.d/02-wp-import-user.sh:ro
+    # Localhost only, for running the import and its tests from the host.
+    ports:
+      - "127.0.0.1:${WP_DB_PORT:-3307}:3306"
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
@@ -87,6 +94,78 @@ services:
       PMA_PASSWORD: ${WORDPRESS_DB_PASSWORD:-wp}
       UPLOAD_LIMIT: 256M
 
+  # Main Django app's own database (ADR 0006). Bound to localhost only, so
+  # host-side tests can reach it without exposing it to the network.
+  main-db:
+    image: postgres:18-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MAIN_DB_NAME:-brandreviews}
+      POSTGRES_USER: ${MAIN_DB_USER:-brandreviews}
+      POSTGRES_PASSWORD: ${MAIN_DB_PASSWORD:-brandreviews}
+    volumes:
+      - main_db_data:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:${MAIN_DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Main Django app (Pillar 1). Applies migrations, then serves with gunicorn.
+  main-app:
+    build: ./main-app
+    image: brandreviews/main-app:local
+    depends_on:
+      main-db:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment: &main-app-env
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-insecure-local-dev-key-set-DJANGO_SECRET_KEY-in-env}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      MAIN_DB_HOST: main-db
+      MAIN_DB_PORT: "5432"
+      MAIN_DB_NAME: ${MAIN_DB_NAME:-brandreviews}
+      MAIN_DB_USER: ${MAIN_DB_USER:-brandreviews}
+      MAIN_DB_PASSWORD: ${MAIN_DB_PASSWORD:-brandreviews}
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  # One-off WordPress import: `make import`. The only service that gets the
+  # WordPress credentials, so the web container can never reach that database.
+  wp-import:
+    build: ./main-app
+    image: brandreviews/main-app:local
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+      main-db:
+        condition: service_healthy
+    environment:
+      <<: *main-app-env
+      WP_IMPORT_DB_HOST: db
+      WP_IMPORT_DB_PORT: "3306"
+      WP_IMPORT_DB_NAME: ${WORDPRESS_DB_NAME:-wp}
+      WP_IMPORT_DB_USER: ${WP_IMPORT_DB_USER:-wp_import}
+      WP_IMPORT_DB_PASSWORD: ${WP_IMPORT_DB_PASSWORD:-wp_import}
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec python manage.py import_wp"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
 volumes:
   db_data:
   wp_files:
+  main_db_data:

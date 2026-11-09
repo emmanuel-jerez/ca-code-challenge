@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Brand Reviews{% endblock %}</title>
+  {% block meta %}{% endblock %}
+</head>
+<body class="l-page">
+  <a class="u-skip-link" href="#main">Skip to content</a>
+  <header class="c-site-header">
+    <div class="l-container c-site-header__inner">
+      <p class="c-site-header__title"><a href="{% url 'catalog:home' %}">Brand Reviews</a></p>
+      <nav class="c-site-nav" aria-label="Primary">
+        <a class="c-site-nav__link" href="{% url 'catalog:home' %}"{% if request.path == "/" %} aria-current="page"{% endif %}>Home</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="l-main">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="c-site-footer">
+    <div class="l-container">&copy; {% now "Y" %} Brand Reviews. Sample data for interview purposes.</div>
+  </footer>
+</body>
+</html>

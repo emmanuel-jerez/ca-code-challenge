@@ -1,0 +1,44 @@
+{% extends "catalog/base.html" %}
+{% load ratings %}
+
+{% block title %}{{ brand.seo_title|default:brand.name }}{% endblock %}
+{% block meta %}{% if brand.seo_description %}<meta name="description" content="{{ brand.seo_description }}">{% endif %}{% endblock %}
+
+{% block content %}
+<section class="c-brand-hero">
+  <div class="l-container">
+    <p class="c-brand-hero__eyebrow"><span class="c-badge">{{ brand.industry.name }}</span></p>
+    <h1 class="c-brand-hero__title">{{ brand.name }}</h1>
+    <p class="c-brand-hero__rating">{% stars brand.average_rating %} <span class="c-brand-hero__count">({{ brand.review_count }} review{{ brand.review_count|pluralize }})</span></p>
+    <dl class="c-brand-facts">
+      {% if brand.headquarters %}<div class="c-brand-facts__item"><dt>HQ</dt><dd>{{ brand.headquarters }}</dd></div>{% endif %}
+      {% if brand.founded_year %}<div class="c-brand-facts__item"><dt>Founded</dt><dd>{{ brand.founded_year }}</dd></div>{% endif %}
+      {% if brand.website_url %}<div class="c-brand-facts__item"><dt>Website</dt><dd><a href="{{ brand.website_url }}" rel="nofollow noopener noreferrer" target="_blank">{{ brand.website_host }}</a></dd></div>{% endif %}
+    </dl>
+  </div>
+</section>
+
+<section class="l-section">
+  <div class="l-container c-prose">
+    {{ brand.body_html }}
+  </div>
+</section>
+
+<section class="l-section" aria-labelledby="customer-reviews">
+  <div class="l-container">
+    <h2 class="l-section__title" id="customer-reviews">Customer Reviews</h2>
+    {% for review in reviews %}
+      <article class="c-review">
+        <div class="c-review__head">
+          <h3 class="c-review__title"><a href="{% url 'catalog:review-detail' review.slug %}">{{ review.title }}</a></h3>
+          {% stars review.rating show_value=False %}
+        </div>
+        <p class="c-review__byline">{{ review.reviewer_name }}{% if review.reviewer_location %}, {{ review.reviewer_location }}{% endif %}{% if review.published_at %} &middot; <time datetime="{{ review.published_at|date:'c' }}">{{ review.published_at|date:"M j, Y" }}</time>{% endif %}</p>
+        <div class="c-review__body c-prose">{{ review.body_html }}</div>
+      </article>
+    {% empty %}
+      <p class="c-empty">No reviews yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
