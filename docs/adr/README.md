@@ -34,6 +34,7 @@ original's status line (0018).
 | [0024](0024-imported-passwords-and-hashing.md) | Imported passwords and password hashing | Accepted |
 | [0025](0025-shared-library-packaging.md) | Shared library packaging, name and upgrade path | Accepted |
 | [0026](0026-pillar-1-import-and-pages.md) | Pillar 1: industry FK, removals, sanitizing, writes, views | Accepted |
+| [0027](0027-pillar-2-listing-contract-details.md) | Pillar 2: top review, validation, errors, versioning, fixture, caching | Accepted |
 
 Template: Status · Date · Context · Options considered · Decision · Consequences ·
 Revisit when · Sources.
