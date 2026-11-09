@@ -161,6 +161,15 @@ def test_content_is_sanitized_and_the_raw_source_kept(wordpress: FakeWordPress) 
 
 
 @pytest.mark.django_db
+def test_plain_text_keeps_a_space_between_adjacent_paragraphs(wordpress: FakeWordPress) -> None:
+    wordpress.edit_post(12, content="<p>Fast claim.</p><p>Fair price.</p>")
+
+    run_import(wordpress)
+
+    assert Review.objects.get(wp_id=12).content_text == "Fast claim. Fair price."
+
+
+@pytest.mark.django_db
 def test_dry_run_reports_without_writing(wordpress: FakeWordPress) -> None:
     report = run_import(wordpress, dry_run=True)
 
