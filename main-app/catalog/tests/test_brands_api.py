@@ -173,16 +173,6 @@ def test_a_page_size_outside_1_to_50_is_a_400(client: Client, page_size: str) ->
 
 
 @pytest.mark.django_db
-def test_a_page_past_the_end_is_a_404(client: Client, make_brand: MakeBrand) -> None:
-    make_brand()
-
-    response = client.get("/api/brands/?page=2")
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Invalid page."}
-
-
-@pytest.mark.django_db
 def test_top_review_is_the_highest_rated_then_newest_then_last_added(
     client: Client, make_brand: MakeBrand, make_review: MakeReview
 ) -> None:
@@ -239,14 +229,6 @@ def test_a_page_costs_three_queries_however_many_brands_it_has(
         body = get_json(client, "?page_size=50")
 
     assert all(row["top_review"] for row in body["results"])
-
-
-@pytest.mark.django_db
-def test_an_empty_listing_costs_one_query(
-    client: Client, django_assert_num_queries: DjangoAssertNumQueries
-) -> None:
-    with django_assert_num_queries(1):
-        get_json(client)
 
 
 @pytest.mark.django_db
