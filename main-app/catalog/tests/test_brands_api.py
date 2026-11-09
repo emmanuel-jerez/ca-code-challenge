@@ -92,3 +92,49 @@ def test_an_unknown_ordering_is_a_400(client: Client) -> None:
 
     assert response.status_code == 400
     assert response.json() == {"ordering": ['"name" is not a valid choice.']}
+
+
+@pytest.mark.django_db
+def test_repeated_industries_match_any_of_them(
+    client: Client, make_brand: MakeBrand, make_industry: MakeIndustry
+) -> None:
+    for slug in ("insurance", "finance", "retail"):
+        make_brand(slug=f"{slug}-brand", industry=make_industry(slug=slug))
+
+    body = get_json(client, "?industry=insurance&industry=retail&ordering=review_count")
+
+    assert [row["slug"] for row in body["results"]] == ["insurance-brand", "retail-brand"]
+
+
+@pytest.mark.django_db
+def test_an_industry_without_published_brands_gives_an_empty_page(
+    client: Client, make_industry: MakeIndustry
+) -> None:
+    make_industry(slug="insurance")
+
+    body = get_json(client, "?industry=insurance")
+
+    assert body == {"count": 0, "next": None, "previous": None, "results": []}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("query", "error"),
+    [
+        # A stale or mistyped link: say so rather than show "no brands".
+        ("?industry=nope", 'Unknown industry: "nope".'),
+        (
+            "?industry=" + "&industry=".join(f"i{n}" for n in range(11)),
+            "Ensure this field has no more than 10 elements.",
+        ),
+    ],
+)
+def test_bad_industry_filters_are_a_400(
+    client: Client, make_industry: MakeIndustry, query: str, error: str
+) -> None:
+    make_industry(slug="insurance")
+
+    response = client.get(f"/api/brands/{query}")
+
+    assert response.status_code == 400
+    assert response.json() == {"industry": [error]}

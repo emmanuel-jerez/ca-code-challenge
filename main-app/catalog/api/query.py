@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from django.db.models import F, OrderBy
 from rest_framework import serializers
 
-from catalog.models import Brand
+from catalog.models import Brand, Industry
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -42,10 +42,15 @@ ORDER_BY: dict[Ordering, tuple[OrderBy | str, ...]] = {
 }
 
 
+MAX_INDUSTRIES = 10
+
+
 @dataclass(frozen=True, slots=True)
 class BrandListQuery:
     """A validated query string. Built only by BrandListQuerySerializer."""
 
+    # Empty means every industry.
+    industries: frozenset[str]
     ordering: Ordering
 
 
@@ -57,13 +62,30 @@ class BrandListQuerySerializer(serializers.Serializer[BrandListQuery]):
     value is a 400, never a silent fallback.
     """
 
+    # Repeated keys (?industry=a&industry=b), meaning any of them.
+    industry = serializers.ListField(
+        child=serializers.SlugField(), max_length=MAX_INDUSTRIES, default=list
+    )
     ordering = serializers.ChoiceField(choices=list(Ordering), default=Ordering.RATING_DESC)
+
+    def validate_industry(self, slugs: list[str]) -> frozenset[str]:
+        wanted = frozenset(slugs)
+        known = set(Industry.objects.filter(slug__in=wanted).values_list("slug", flat=True))
+        # Sorted so the message names the same slug every time.
+        unknown = sorted(wanted - known)
+        if unknown:
+            raise serializers.ValidationError(f'Unknown industry: "{unknown[0]}".')
+        return wanted
 
     def to_query(self) -> BrandListQuery:
         data = self.validated_data
-        return BrandListQuery(ordering=Ordering(data["ordering"]))
+        return BrandListQuery(industries=data["industry"], ordering=Ordering(data["ordering"]))
 
 
 def brand_cards(query: BrandListQuery) -> QuerySet[Brand]:
     """Published brands for the listing, filtered and ordered as asked."""
-    return Brand.objects.published().select_related("industry").order_by(*ORDER_BY[query.ordering])
+    brands = Brand.objects.published().select_related("industry")
+    if query.industries:
+        # A foreign key, so the join can't duplicate brands (ADR 0026).
+        brands = brands.filter(industry__slug__in=query.industries)
+    return brands.order_by(*ORDER_BY[query.ordering])
