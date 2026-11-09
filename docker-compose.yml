@@ -127,6 +127,10 @@ services:
       # that name on Docker Hub.
       additional_contexts:
         frontend-src: ./frontend
+        # The shared library, at the path uv.lock records (ADR 0025). Its
+        # own context, so the repo root (and its .env) never reaches the
+        # builder.
+        shared-lib: ./shared-lib
     image: brandreviews/main-app:local
     depends_on:
       main-db:
@@ -143,6 +147,11 @@ services:
       MAIN_DB_NAME: ${MAIN_DB_NAME:-brandreviews}
       MAIN_DB_USER: ${MAIN_DB_USER:-brandreviews}
       MAIN_DB_PASSWORD: ${MAIN_DB_PASSWORD:-brandreviews}
+      # Where the main app fetches the auth service's public keys, and what
+      # its tokens must say (ADR 0016). Never a per-request call.
+      AUTH_JWKS_URL: ${AUTH_JWKS_URL:-http://auth-service:8000/.well-known/jwks.json}
+      JWT_ISSUER: ${JWT_ISSUER:-http://auth-service:8000}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-brands-api}
     command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')"]
@@ -203,7 +212,9 @@ services:
       AUTH_DB_NAME: ${AUTH_DB_NAME:-brandreviews_auth}
       AUTH_DB_USER: ${AUTH_DB_USER:-brandreviews_auth}
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-brandreviews_auth}
+      # Same variables as the main app's, so the two can't disagree.
       JWT_ISSUER: ${JWT_ISSUER:-http://auth-service:8000}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-brands-api}
       JWT_SIGNING_KEY_FILE: /run/secrets/jwt_signing_key
     # createcachetable makes the throttle table; it isn't a migration.
     command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py createcachetable && exec gunicorn config.wsgi"]

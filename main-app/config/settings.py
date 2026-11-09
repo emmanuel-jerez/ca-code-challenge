@@ -108,16 +108,22 @@ REST_FRAMEWORK = {
     # form/multipart parsers and the browsable API (ADR 0015).
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    # No session or basic auth: this app has no passwords. The bearer-token
-    # class from the shared library arrives with the auth service (Pillar 5).
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    # Deny by default; public views opt in with AllowAny. With no
-    # authentication classes, IsAuthenticated refuses everyone.
+    # No session or basic auth: this app has no passwords. Bearer tokens from
+    # the auth service, verified locally by the shared library (ADR 0016).
+    "DEFAULT_AUTHENTICATION_CLASSES": ["catalog.api.authentication.BearerAuthentication"],
+    # Deny by default; public views opt in with AllowAny, protected ones
+    # name the scopes they need.
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     # DRF's default (AnonymousUser) imports django.contrib.auth, which this
     # app doesn't install.
     "UNAUTHENTICATED_USER": None,
 }
+
+# Access tokens from the auth service (ADR 0016). The main app only reads
+# its public keys; it never calls it per request. Defaults match Compose.
+AUTH_JWKS_URL = os.environ.get("AUTH_JWKS_URL", "http://auth-service:8000/.well-known/jwks.json")
+JWT_ISSUER = os.environ.get("JWT_ISSUER", "http://auth-service:8000")
+JWT_AUDIENCE = os.environ.get("JWT_AUDIENCE", "brands-api")
 
 # Content Security Policy (ADR 0017): scripts and styles from our origin only,
 # no 'unsafe-inline'. Report-only until reports are clean.
