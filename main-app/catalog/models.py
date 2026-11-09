@@ -7,10 +7,12 @@ the import can upsert on it (ADR 0007). Field choices are in ADRs 0019-0021 and
 """
 
 from typing import Self
+from urllib.parse import urlsplit
 
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Now
+from django.utils.safestring import SafeString, mark_safe
 
 
 class Status(models.TextChoices):
@@ -26,6 +28,25 @@ class Status(models.TextChoices):
     PRIVATE = "private"
     TRASH = "trash"
     REMOVED = "removed"
+
+
+class SanitizedContent(models.Model):
+    """Rows whose `content_html` was cleaned with nh3 at import."""
+
+    content_html: str
+
+    class Meta:
+        abstract = True
+
+    @property
+    def body_html(self) -> SafeString:
+        """The one place imported HTML skips autoescaping.
+
+        `content_html` is only ever written by the import, which cleans it with
+        nh3 and an allow-list (wp_import.content.to_safe_html). A test fails if
+        a template uses |safe instead.
+        """
+        return mark_safe(self.content_html)  # noqa: S308 - nh3-sanitized at import
 
 
 class PublishableQuerySet[M: models.Model](models.QuerySet[M]):
@@ -62,7 +83,7 @@ class Reviewer(models.Model):
         return self.display_name
 
 
-class Brand(models.Model):
+class Brand(SanitizedContent):
     wp_id = models.PositiveBigIntegerField(unique=True, null=True, blank=True)
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
@@ -132,8 +153,13 @@ class Brand(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    @property
+    def website_host(self) -> str:
+        """The link text the theme shows: the URL's host name."""
+        return urlsplit(self.website_url).hostname or ""
 
-class Review(models.Model):
+
+class Review(SanitizedContent):
     wp_id = models.PositiveBigIntegerField(unique=True, null=True, blank=True)
     title = models.CharField(max_length=300)
     slug = models.SlugField(max_length=200, unique=True)

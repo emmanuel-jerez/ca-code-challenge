@@ -1,0 +1,8 @@
+{% load ratings %}
+<article class="c-card">
+  <p class="c-card__eyebrow"><span class="c-badge">{{ brand.industry.name }}</span></p>
+  <h3 class="c-card__title"><a href="{% url 'catalog:brand-detail' brand.slug %}">{{ brand.name }}</a></h3>
+  {% stars brand.average_rating %}
+  {% if brand.headquarters %}<p class="c-card__meta">{{ brand.headquarters }}</p>{% endif %}
+  <p class="c-card__excerpt">{{ brand.short_description }}</p>
+</article>
