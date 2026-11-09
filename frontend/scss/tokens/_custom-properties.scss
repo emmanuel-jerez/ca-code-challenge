@@ -15,6 +15,9 @@
     @each $name, $value in tok.$font-size {
       --font-size-#{$name}: #{$value};
     }
+    @each $name, $value in tok.$letter-spacing {
+      --letter-spacing-#{$name}: #{$value};
+    }
     @each $name, $value in tok.$line-height {
       --line-height-#{$name}: #{$value};
     }

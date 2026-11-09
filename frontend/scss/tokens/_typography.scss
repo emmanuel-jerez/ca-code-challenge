@@ -12,6 +12,13 @@ $font-size: (
   "md": 0.95rem,
   "lg": 1.1rem,
   "xl": 1.5rem,
+  "2xl": 1.75rem,
+);
+
+// Headings tighten their tracking; the theme uses these two more than once.
+$letter-spacing: (
+  "tight": -0.01em,
+  "tighter": -0.02em,
 );
 
 $line-height: (

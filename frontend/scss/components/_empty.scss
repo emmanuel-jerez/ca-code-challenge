@@ -1,0 +1,10 @@
+// "No reviews yet" and similar. WordPress reused .meta here, outside .card,
+// where it had no styles.
+@use "../tools" as t;
+
+@layer components {
+  .c-empty {
+    margin: 0;
+    color: t.color("text-muted");
+  }
+}

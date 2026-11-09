@@ -1,0 +1,20 @@
+@use "../tools" as t;
+
+@layer utilities {
+  // The first tab stop on every page, shown only while focused (WCAG 2.4.1).
+  .u-skip-link {
+    position: absolute;
+    inset-block-start: t.space(2);
+    inset-inline-start: t.space(2);
+    z-index: 1;
+    padding: t.space(2) t.space(4);
+    background: t.color("surface");
+    border: 1px solid t.color("primary");
+    border-radius: t.radius("sm");
+    font-weight: 600;
+  }
+
+  .u-skip-link:not(:focus) {
+    @include t.visually-hidden;
+  }
+}

@@ -10,7 +10,7 @@
   <a class="u-skip-link" href="#main">Skip to content</a>
   <header class="c-site-header">
     <div class="l-container c-site-header__inner">
-      <p class="c-site-header__title"><a href="{% url 'catalog:home' %}">Brand Reviews</a></p>
+      <p class="c-site-header__title"><a class="c-site-header__home-link" href="{% url 'catalog:home' %}">Brand Reviews</a></p>
       <nav class="c-site-nav" aria-label="Primary">
         <a class="c-site-nav__link" href="{% url 'catalog:home' %}"{% if request.path == "/" %} aria-current="page"{% endif %}>Home</a>
       </nav>

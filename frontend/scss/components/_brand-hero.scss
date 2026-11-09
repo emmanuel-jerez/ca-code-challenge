@@ -1,0 +1,28 @@
+// The top of a brand page: industry, name, rating and facts.
+@use "../tools" as t;
+
+@layer components {
+  .c-brand-hero {
+    padding-block: t.space(10);
+    background: t.color("surface");
+    border-block-end: 1px solid t.color("border");
+  }
+
+  .c-brand-hero__eyebrow,
+  .c-brand-hero__rating {
+    margin: 0;
+  }
+
+  .c-brand-hero__title {
+    margin: 0 0 t.space(3);
+    font-size: 2rem; // WP value, off-scale
+    letter-spacing: t.letter-spacing("tighter");
+  }
+
+  // Replaces WordPress's inline margin on the review count.
+  .c-brand-hero__count {
+    margin-inline-start: t.space(2);
+    color: t.color("text-muted");
+    font-size: t.font-size("xs");
+  }
+}

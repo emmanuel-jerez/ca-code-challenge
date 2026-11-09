@@ -1,7 +1,11 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
-import { compareStylesheets } from './equivalence';
+import { compileTheme } from './compileTheme';
+import { type Comparison, compareStylesheets } from './equivalence';
+import { DEVIATIONS, type Deviation, WP_TO_BEM } from './wp-mapping';
 
 describe('compareStylesheets', () => {
   it('matches a declaration through renamed custom properties and a new class name', () => {
@@ -127,3 +131,43 @@ describe('compareStylesheets', () => {
     expect(comparisons.map(({ status }) => status)).toEqual(['same']);
   });
 });
+
+function covers(deviation: Deviation, comparison: Comparison): boolean {
+  const { property, context } = deviation;
+  return (
+    deviation.selector === comparison.selector &&
+    (property === undefined ||
+      comparison.property === property ||
+      comparison.property.startsWith(`${property}-`)) &&
+    (context === undefined || comparison.context === context)
+  );
+}
+
+describe('theme.scss against reference/theme.css', () => {
+  const reference = readFileSync(new URL('../../reference/theme.css', import.meta.url), 'utf8');
+  const { comparisons, unmapped } = compareStylesheets(reference, compileTheme(), WP_TO_BEM);
+  const differences = comparisons.filter(
+    ({ status }) => status === 'different' || status === 'missing',
+  );
+
+  it('maps every WordPress selector', () => {
+    expect(unmapped).toEqual([]);
+  });
+
+  it('reproduces every WordPress declaration, except the listed deviations', () => {
+    const unexplained = differences.filter(
+      (comparison) => !DEVIATIONS.some((deviation) => covers(deviation, comparison)),
+    );
+
+    expect(unexplained).toEqual([]);
+  });
+
+  it('lists no deviation that no longer applies', () => {
+    const stale = DEVIATIONS.filter(
+      (deviation) => !differences.some((comparison) => covers(deviation, comparison)),
+    );
+
+    expect(stale).toEqual([]);
+  });
+});
+

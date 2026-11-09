@@ -1,0 +1,15 @@
+@use "../tools" as t;
+
+@layer components {
+  .c-site-footer {
+    margin-block-start: t.space(16);
+    padding-block: t.space(8);
+    background: t.color("inverse-surface");
+    color: t.color("on-inverse");
+    font-size: t.font-size("sm");
+  }
+
+  .c-site-footer__link {
+    color: t.color("on-inverse-muted");
+  }
+}

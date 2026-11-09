@@ -1,0 +1,20 @@
+// Sanitized WordPress HTML, which can't carry classes. The one place that
+// styles elements under a block; :where() keeps it at one class of
+// specificity, so any block class still wins.
+@use "../tools" as t;
+
+@layer components {
+  .c-prose > :where(:first-child) {
+    margin-block-start: 0;
+  }
+
+  .c-prose > :where(:last-child) {
+    margin-block-end: 0;
+  }
+
+  // Underlined in running text, so a link doesn't rely on color (WCAG 1.4.1):
+  // against the text around it, the link color is only 3.18:1.
+  .c-prose :where(a) {
+    text-decoration: underline;
+  }
+}

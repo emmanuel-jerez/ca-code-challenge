@@ -1,0 +1,20 @@
+// A white box for long-form content: a brand's or review's body, or a page.
+@use "../tools" as t;
+
+@layer components {
+  .c-panel {
+    @include t.surface;
+
+    padding: t.space(8);
+  }
+
+  .c-panel--article {
+    padding: 28px; // WP value, off-scale
+    font-size: 1.02rem; // WP value, off-scale
+  }
+
+  .c-panel__title {
+    margin-block-start: 0;
+    font-size: t.font-size("2xl");
+  }
+}

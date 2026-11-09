@@ -1,0 +1,38 @@
+// A review in a brand page's list.
+@use "../tools" as t;
+
+@layer components {
+  .c-review {
+    @include t.surface;
+
+    margin-block-end: t.space(4);
+    padding: 22px; // WP value, off-scale
+  }
+
+  .c-review__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px; // WP value, off-scale
+    margin-block-end: t.space(2);
+  }
+
+  .c-review__title {
+    margin: 0;
+    font-size: 1.05rem; // WP value, off-scale
+    font-weight: 600;
+  }
+
+  .c-review__link {
+    color: t.color("text");
+  }
+
+  .c-review__byline {
+    margin: t.space(1) 0 t.space(3);
+  }
+
+  .c-review__body {
+    color: t.color("text-prose");
+    font-size: t.font-size("md");
+  }
+}

@@ -1,0 +1,18 @@
+@use "../tools" as t;
+
+@layer components {
+  .c-site-nav {
+    display: flex;
+    gap: 22px; // WP value, off-scale
+    font-size: t.font-size("md");
+  }
+
+  .c-site-nav__link {
+    color: t.color("text");
+    font-weight: 500;
+
+    &:hover {
+      color: t.color("primary");
+    }
+  }
+}

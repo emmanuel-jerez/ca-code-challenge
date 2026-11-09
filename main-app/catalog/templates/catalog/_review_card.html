@@ -1,7 +1,7 @@
 {% load ratings %}
 <article class="c-card">
-  <p class="c-card__meta"><a href="{% url 'catalog:brand-detail' review.brand.slug %}">{{ review.brand.name }}</a></p>
-  <h3 class="c-card__title"><a href="{% url 'catalog:review-detail' review.slug %}">{{ review.title }}</a></h3>
+  <p class="c-card__meta"><a class="c-card__meta-link" href="{% url 'catalog:brand-detail' review.brand.slug %}">{{ review.brand.name }}</a></p>
+  <h3 class="c-card__title"><a class="c-card__link" href="{% url 'catalog:review-detail' review.slug %}">{{ review.title }}</a></h3>
   {% stars review.rating show_value=False %}
   <p class="c-card__excerpt">{{ review.content_text|truncatewords:24 }}</p>
   <p class="c-card__meta">&mdash; {{ review.reviewer_name }}{% if review.reviewer_location %}, {{ review.reviewer_location }}{% endif %}</p>
