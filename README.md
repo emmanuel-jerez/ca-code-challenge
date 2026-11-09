@@ -10,13 +10,14 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 ## Project status (2026-11-09)
 
-**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) is started; Pillars 5 and 6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
+**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) has every block, checked against `reference/theme.css`; serving it from Django is next. Pillars 5 and 6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
 
 ### Done
 
 - **Pillar 1: Django app** in [main-app/](main-app/): models, the re-runnable WordPress import, and the homepage, brand and review pages. See [Main app](#main-app-pillar-1) below.
 - **Pillar 2: `GET /api/brands/`**: filtered, sorted and paginated brand cards, plus a contract fixture for the frontend. See [Brand listing API](#brand-listing-api-pillar-2) below.
 - **Pillar 3: `<BrandList />`** in [frontend/](frontend/): the React component, its tests, a dev page, and the part of the SCSS tree it needs. See [`<BrandList />`](#brandlist--pillar-3) below.
+- **Pillar 4: the SCSS tree** in [frontend/scss/](frontend/scss/): tokens, tools and every block the pages and the component use, with a test that compares the output with `reference/theme.css`. See [SCSS](#scss-pillar-4) below.
 - **Agent guidance.**
   - [AGENTS.md](AGENTS.md) (loaded through `CLAUDE.md`) holds the project rules, each with its reason: the accepted stack, security rules, code style, and the auth and frontend rules.
   - Project skills live in `.agents/skills/`. Run `make skills` once per checkout so Claude Code can load them.
@@ -28,7 +29,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - one deeper note per pillar ([1](docs/research/pillar-1-django-backend.md), [2](docs/research/pillar-2-brands-api.md), [3](docs/research/pillar-3-brandlist-component.md), [4](docs/research/pillar-4-scss-architecture.md), [5](docs/research/pillar-5-auth-service.md), [6](docs/research/pillar-6-shared-library.md)).
 
   Every option is weighed by its security cost and its long-term stability, and data facts are measured from `db/dump.sql`.
-- **Decision records.** [docs/adr/](docs/adr/README.md) holds 31 records (0000–0030). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
+- **Decision records.** [docs/adr/](docs/adr/README.md) holds 32 records (0000–0031). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
   - **Stack:**
     - Django 5.2 LTS on Python 3.14, with a security floor (`>=5.2.18`);
     - DRF, JSON only;
@@ -68,6 +69,11 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
     - Sass deprecations as build errors, plus a test on the compiled CSS, in place of stylelint;
     - `sass` pinned exactly;
     - one folder per cascade layer, role-named tokens, getters that fail the build on a typo.
+  - **Pillar 4:**
+    - the Sass CLI builds `theme.css` and Vite the component, both in a Node stage of the Docker build, so the runtime image has no Node;
+    - `<BrandList />` mounts on a new `/brand/` page, WordPress's archive URL;
+    - a test compares the output with `reference/theme.css`, declaration by declaration, and every difference has a listed reason;
+    - two PRs: the blocks and the comparison first, then build, delivery and mounting.
   - **Pillar 5:**
     - EdDSA JWTs (10-minute lifetime) verified locally;
     - revocation within one token lifetime;
@@ -83,7 +89,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 | Deliverable | State |
 |---|---|
-| Pillar 4: SCSS source tree under `frontend/scss/` | Started: the layers, tokens, tools and the blocks `<BrandList />` uses (ADR 0030). Still to do: the other blocks, the comparison with `reference/theme.css`, and serving `theme.css` and the component from Django (template tag, `/brand/` page, Node build stage) |
+| Pillar 4: SCSS source tree under `frontend/scss/` | Every block is built and compared with `reference/theme.css` (ADRs 0030, 0031). Still to do: serving `theme.css` and the component from Django (Node build stage, template tag, `/brand/` page) |
 | Pillar 5: auth service (users, login, roles, JWKS) and the editor-only `PATCH /api/brands/<slug>/` | Not started |
 | Pillar 6: shared library with its own tests | Not started |
 | Docker Compose services for the auth service and its database | Not started (the main app's are done) |
@@ -93,7 +99,6 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 Still open, with options in the research notes:
 - `PATCH` concurrency;
 - whether the auth service has an admin;
-- Pillar 4's build and delivery (Sass CLI or Vite for `theme.css`, compiled in a Docker build stage).
 
 Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to it in `main-app/` in its own change after it clears (ADR 0014).
 
@@ -240,17 +245,6 @@ pnpm build                    # dist/ plus .vite/manifest.json for a Django temp
 
 The component tests drive it through roles and the keyboard, with `fetch` stubbed, so responses can arrive out of order. They cover loading, empty, error and Retry, the URL and Back button, a 404 past the last page, and focus, and run axe in each state. Colour contrast, target size and screen-reader announcements need a real browser; jsdom can't check them.
 
-### Compile the SCSS
-
-```bash
-cd frontend
-pnpm scss                     # scss/theme.scss → dist-css/theme.css
-```
-
-That runs `sass --no-source-map --no-error-css --fatal-deprecation=1.107.0`: every deprecation is an error, and a failed compile writes no CSS. The dev server compiles the same file with the same policy. `scss/theme.test.ts` checks the output: one layer-order statement, every rule in a cascade layer, prefixed BEM class names, raw colors only in tokens, no `!important`, flat selectors, and that a token typo fails the build (ADR 0023, ADR 0030).
-
-The tree has one folder per cascade layer: `tokens/` and `tools/` emit no CSS, then `base/`, `layout/` (`l-`), `components/` (`c-`) and `utilities/` (`u-`). A new component is one partial in `components/`, one `@layer components` block and one `@use` line in `components/_index.scss`.
-
 ### How it works
 
 - **State lives in the URL** (`?industry=finance&industry=telecom&ordering=review_count&page=2`, the API's names), so a view can be shared and Back works. Filters and pages push a history entry; repeated sort changes share one. Unknown values are dropped and the URL corrected in place. Other parameters, such as `utm_source`, are kept.
@@ -270,6 +264,84 @@ The tree has one folder per cascade layer: `tokens/` and `tools/` emit no CSS, t
 - the build entry set under `build.rolldownOptions`;
 - full Zod rather than `zod/mini`;
 - accessibility fixes to the WordPress CSS: no forced root font size, a focus ring, motion only when not reduced, a 3:1 border on the select.
+
+It's styled by the shared SCSS tree; see [SCSS](#scss-pillar-4).
+
+## SCSS (Pillar 4)
+
+The SCSS source for the whole site is in [frontend/scss/](frontend/scss/). One stylesheet, `theme.css`, serves both the Django pages and `<BrandList />`, so a brand card looks the same in both (ADR 0023).
+
+### Compile it
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm scss                     # scss/theme.scss → dist-css/theme.css
+pnpm test                     # includes the architecture and equivalence checks
+```
+
+`pnpm scss` runs `sass --no-source-map --no-error-css --fatal-deprecation=1.107.0`: every deprecation is an error, and a failed compile writes no CSS. The Vite dev server compiles with the same policy. No Django page links `theme.css` yet; that comes with the Docker build stage (ADR 0031).
+
+### Structure
+
+One folder per cascade layer, in the order `_layers.scss` declares them:
+
+| Folder | Emits CSS | Holds |
+|---|---|---|
+| `tokens/` | Only `_custom-properties.scss` (`:root`) | Sass maps: colors (private palette, public roles), type, space, radius, shadow, motion, layout, breakpoints |
+| `tools/` | No | Getters such as `t.color("text-muted")`, which return the custom property and stop the build on an unknown name; mixins `below()`, `container-below()`, `motion-safe`, `focus-ring`, `surface`, `visually-hidden` |
+| `base/` | `@layer reset, base` | Box sizing, body type, links, focus ring |
+| `layout/` (`l-`) | `@layer layout` | `l-container`, `l-section`, `l-grid` |
+| `components/` (`c-`) | `@layer components` | One block per file: site header, nav and footer, heroes, card, badge, stars, review, byline, panel, prose, pagination, `<BrandList />`'s parts |
+| `utilities/` (`u-`) | `@layer utilities` | `u-visually-hidden`, `u-skip-link` |
+
+Later layers win regardless of specificity, so a utility beats a component without `!important`. Values that recur are tokens; one-off WordPress values stay in their block, marked `WP value, off-scale`.
+
+**Adding a component:** one partial in `components/` with one `@layer components` block, `@use "../tools" as t;` for tokens, and one `@use` line in `components/_index.scss`. Name classes `c-block__element--modifier`. The tests enforce the rest.
+
+### What the tests check
+
+- **`scss/theme.test.ts`** (architecture): one layer-order statement first, every rule in a layer, prefixed BEM class names, raw colors only in the tokens layer, no `!important`, no ids and at most two classes or states per selector, and that a token typo fails the build (ADRs 0023, 0030). It stands in for stylelint, whose SCSS setup pulls a hijacked dependency chain.
+- **`scss/equivalence.test.ts`** (equivalence): compiles `theme.scss` and compares every declaration in `reference/theme.css`. It resolves custom properties on both sides and maps selectors through [scss/wp-mapping.ts](frontend/scss/wp-mapping.ts). It fails on an unmapped WordPress selector, on a difference with no listed reason, or on a listed reason that no longer applies (ADR 0031). The intended differences are:
+  - the `html` rule is folded into `body`;
+  - no forced 16px root font size;
+  - an intrinsic grid column that needs no mobile media query;
+  - the about page's margin moves to its section.
+
+  Hover motion now waits for `prefers-reduced-motion: no-preference`.
+
+### WordPress → BEM
+
+The full table is `WP_TO_BEM` in [scss/wp-mapping.ts](frontend/scss/wp-mapping.ts). The main renames:
+
+| WordPress | Ours |
+|---|---|
+| `.container`, `.grid`, `.section`, `.section h2`, `.section-header` | `.l-container`, `.l-grid`, `.l-section`, `.l-section__title`, `.l-section__header` |
+| `.brand-body`, `.reviews-section` | `.l-section--article`, `.l-section--reviews` |
+| `.site-header`, `.site-title`, `.site-nav a`, `.site-footer` | `.c-site-header`, `.c-site-header__title`, `.c-site-nav__link`, `.c-site-footer` |
+| `.hero h1`, `.hero p` | `.c-hero__title`, `.c-hero__lead` |
+| `.brand-hero`, `.brand-meta`, `.brand-meta strong` | `.c-brand-hero`, `.c-brand-facts`, `.c-brand-facts__label` |
+| `.review-hero .brand-link` | `.c-review-hero__back` |
+| `.card h3 a`, `.card .meta`, `.card .excerpt` | `.c-card__link`, `.c-card__meta`, `.c-card__excerpt` |
+| `.stars .star-empty`, `.stars .rating-value`, `.badge` | `.c-stars__star--empty`, `.c-stars__value`, `.c-badge` |
+| `.review-item`, `.review-byline`, `.review-body` | `.c-review`, `.c-byline` + `.c-review__byline`, `.c-review__body` |
+| `.brand-body .content`, `.page-body` | `.c-panel--article` + `.c-prose`, `.c-panel` |
+| `.pagination .page-numbers.current` | `.c-pagination__link[aria-current="page"]` |
+
+WordPress's seven inline styles became modifiers (`l-section--alt`, `c-hero--compact`) or elements (`c-brand-hero__count`, `c-review-hero__byline`), because the CSP allows no inline styles (ADR 0017).
+
+**AI defaults accepted** (ADR 0031, items 5–15):
+- `motion-guarded` and `initial` reported as their own statuses, not as deviations;
+- a `surface` mixin rather than a shared class;
+- `c-byline` as its own block;
+- `c-panel` + `c-prose` for long-form content;
+- the about page's margin on the section;
+- new color roles, a `2xl` font size and two letter-spacing tokens;
+- underlined links in prose, a skip link, a stretched title link on review cards;
+- WordPress's unstyled `.meta` leaks fixed with `c-empty` and a `<dl>` for brand facts;
+- unstyled `l-page` and `l-main` hooks;
+- the specificity counter no longer counts `:not()` itself;
+- one shared compile helper for the tests.
 
 ## The WordPress source site
 

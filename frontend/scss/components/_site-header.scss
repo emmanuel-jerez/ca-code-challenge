@@ -1,0 +1,36 @@
+@use "../tools" as t;
+
+@layer components {
+  .c-site-header {
+    padding-block: 18px; // WP value, off-scale
+    background: t.color("surface");
+    border-block-end: 1px solid t.color("border");
+  }
+
+  .c-site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: t.space(6);
+  }
+
+  .c-site-header__title {
+    margin: 0;
+    font-size: 1.25rem; // WP value, off-scale
+    font-weight: 700;
+    letter-spacing: t.letter-spacing("tight");
+  }
+
+  .c-site-header__home-link {
+    color: t.color("text");
+  }
+
+  // Narrow screens: the title above the navigation.
+  @include t.below("sm") {
+    .c-site-header__inner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: t.space(3);
+    }
+  }
+}

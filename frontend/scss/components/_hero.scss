@@ -1,0 +1,39 @@
+// The home page's banner.
+@use "../tools" as t;
+
+@layer components {
+  .c-hero {
+    padding-block: t.space(16) t.space(14);
+    background: linear-gradient(135deg, t.color("primary") 0%, t.color("primary-deep") 100%);
+    color: t.color("on-primary");
+  }
+
+  // Listing pages: less height (an inline style in WordPress).
+  .c-hero--compact {
+    padding-block: t.space(12);
+  }
+
+  .c-hero__title {
+    margin: 0 0 t.space(3);
+    font-size: 2.25rem; // WP value, off-scale
+    font-weight: 700;
+    letter-spacing: t.letter-spacing("tighter");
+  }
+
+  .c-hero__lead {
+    max-width: 640px; // WP value: a comfortable line length
+    margin: 0;
+    font-size: t.font-size("lg");
+    opacity: 0.92;
+  }
+
+  @include t.below("sm") {
+    .c-hero {
+      padding-block: t.space(10);
+    }
+
+    .c-hero__title {
+      font-size: t.font-size("2xl");
+    }
+  }
+}

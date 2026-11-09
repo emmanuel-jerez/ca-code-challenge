@@ -1,16 +1,11 @@
 // @vitest-environment node
 // The architecture rules from ADR 0023, checked on the compiled CSS. They
 // stand in for stylelint, whose SCSS setup pulls a hijacked dependency chain.
-import { fileURLToPath } from 'node:url';
-
 import postcss, { AtRule, type Node, type Root } from 'postcss';
-import { Version, compile, compileString } from 'sass';
+import { compileString } from 'sass';
 import { describe, expect, it } from 'vitest';
 
-const SCSS_DIR = fileURLToPath(new URL('.', import.meta.url));
-
-// The same policy as the `scss` script's --fatal-deprecation=1.107.0.
-const OPTIONS = { fatalDeprecations: [Version.parse('1.107.0')], loadPaths: [SCSS_DIR] };
+import { SASS_OPTIONS, compileTheme } from './compileTheme';
 
 const LAYER_ORDER = 'reset, tokens, base, layout, components, utilities';
 
@@ -46,10 +41,6 @@ function hasRawColor(prop: string, value: string): boolean {
   );
 }
 
-function compileTheme(): Root {
-  return postcss.parse(compile(`${SCSS_DIR}theme.scss`, OPTIONS).css);
-}
-
 /** The names of the @layer blocks around `node`, outermost first. */
 function layersAround(node: Node): string[] {
   const layers: string[] = [];
@@ -59,9 +50,15 @@ function layersAround(node: Node): string[] {
   return layers;
 }
 
-/** Class, attribute and pseudo-class count, ignoring :where() (which adds none). */
+/**
+ * Class, attribute and pseudo-class count. :where() adds none; :not(), :is()
+ * and :has() add only their argument's, so the wrapper itself isn't counted.
+ */
 function specificity(selector: string): { ids: number; classes: number } {
-  const counted = selector.replace(/:where\([^)]*\)/g, '').replace(/::[a-z-]+/g, '');
+  const counted = selector
+    .replace(/:where\([^)]*\)/g, '')
+    .replace(/:(not|is|has)\(/g, '(')
+    .replace(/::[a-z-]+/g, '');
   return {
     ids: (counted.match(/#[\w-]+/g) ?? []).length,
     classes: (counted.match(/\.[\w-]+|\[[^\]]*\]|:[a-z-]+/g) ?? []).length,
@@ -69,7 +66,7 @@ function specificity(selector: string): { ids: number; classes: number } {
 }
 
 describe('compiled theme.css', () => {
-  const css = compileTheme();
+  const css: Root = postcss.parse(compileTheme());
 
   it('declares the cascade layer order once, before any rule', () => {
     const first = css.first;
@@ -137,6 +134,6 @@ describe('token functions', () => {
   it('fail the build on an unknown token instead of emitting a dead var()', () => {
     const source = '@use "tools" as t;\n.c-x { color: t.color("txet-muted"); }';
 
-    expect(() => compileString(source, OPTIONS)).toThrow(/Unknown color token/);
+    expect(() => compileString(source, SASS_OPTIONS)).toThrow(/Unknown color token/);
   });
 });

@@ -1,0 +1,30 @@
+// The top of a review page: a link back to the brand, title, rating, byline.
+@use "../tools" as t;
+
+@layer components {
+  .c-review-hero {
+    padding-block: t.space(8) t.space(6);
+    background: t.color("surface");
+    border-block-end: 1px solid t.color("border");
+  }
+
+  .c-review-hero__back {
+    margin: 0;
+    color: t.color("primary");
+    font-size: t.font-size("sm");
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .c-review-hero__title {
+    margin: t.space(2) 0 t.space(3);
+    font-size: t.font-size("2xl");
+    letter-spacing: t.letter-spacing("tight");
+  }
+
+  // Replaces WordPress's inline margin on the byline.
+  .c-review-hero__byline {
+    margin: t.space(2) 0 0;
+  }
+}

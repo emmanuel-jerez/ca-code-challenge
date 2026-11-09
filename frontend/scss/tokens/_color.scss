@@ -9,10 +9,14 @@ $-palette: (
   "ink": #1a1a1a, // WP text color; no Tailwind match
   "gray-200": #e5e7eb,
   "gray-300": #d1d5db,
+  "gray-400": #9ca3af,
   "gray-500": #6b7280,
   "gray-700": #374151,
+  "gray-800": #1f2937,
+  "gray-900": #111827,
   "teal-700": #0f766e,
   "teal-800": #115e59,
+  "teal-900": #134e4a,
   "emerald-50": #ecfdf5,
   "emerald-100": #d1fae5,
   "amber-500": #f59e0b,
@@ -28,6 +32,8 @@ $color: map.merge(
     "background": map.get($-palette, "paper"),
     "surface": map.get($-palette, "white"),
     "text": map.get($-palette, "ink"),
+    // Long-form text: review bodies.
+    "text-prose": map.get($-palette, "gray-800"),
     "text-secondary": map.get($-palette, "gray-700"),
     // 4.83:1 on surface, 4.51:1 on background: passes AA by a hair there.
     "text-muted": map.get($-palette, "gray-500"),
@@ -36,9 +42,15 @@ $color: map.merge(
     "border-strong": map.get($-palette, "gray-300"),
     "primary": map.get($-palette, "teal-700"),
     "primary-strong": map.get($-palette, "teal-800"),
+    // The far end of the hero gradient.
+    "primary-deep": map.get($-palette, "teal-900"),
     "primary-subtle": map.get($-palette, "emerald-50"),
     "primary-subtle-border": map.get($-palette, "emerald-100"),
     "on-primary": map.get($-palette, "white"),
+    // The dark footer band. Its text is 12.04:1 and its links 6.99:1.
+    "inverse-surface": map.get($-palette, "gray-900"),
+    "on-inverse": map.get($-palette, "gray-300"),
+    "on-inverse-muted": map.get($-palette, "gray-400"),
     "accent": map.get($-palette, "amber-500"),
     "danger": map.get($-palette, "red-700"),
   ),

@@ -23,6 +23,10 @@
   @return -token("font-size", tok.$font-size, $name);
 }
 
+@function letter-spacing($name) {
+  @return -token("letter-spacing", tok.$letter-spacing, $name);
+}
+
 @function line-height($name) {
   @return -token("line-height", tok.$line-height, $name);
 }

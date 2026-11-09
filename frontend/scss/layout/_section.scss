@@ -4,4 +4,49 @@
   .l-section {
     padding-block: t.space(12);
   }
+
+  // Modifiers follow the block, so they win at equal specificity.
+  // The home page's white band (an inline style in WordPress).
+  .l-section--alt {
+    background: t.color("surface");
+    border-block: 1px solid t.color("border");
+  }
+
+  // Under a brand or review hero.
+  .l-section--article {
+    padding-block: t.space(8) t.space(12);
+  }
+
+  .l-section--reviews {
+    padding-block: t.space(6) t.space(16);
+  }
+
+  .l-section__title {
+    margin: 0 0 t.space(6);
+    font-size: t.font-size("xl");
+    letter-spacing: t.letter-spacing("tight");
+  }
+
+  .l-section--reviews .l-section__title {
+    margin-block-end: 18px; // WP value, off-scale
+    font-size: 1.4rem; // WP value, off-scale
+  }
+
+  // A title with a link beside it ("All brands →").
+  .l-section__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: t.space(4);
+    margin-block-end: t.space(6);
+  }
+
+  // Two classes, so the header's spacing wins by specificity, not by order.
+  .l-section__header .l-section__title {
+    margin: 0;
+  }
+
+  .l-section__more {
+    font-size: t.font-size("sm");
+  }
 }

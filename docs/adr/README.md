@@ -38,6 +38,7 @@ original's status line (0018).
 | [0028](0028-pillar-3-brandlist-component.md) | Pillar 3: `<BrandList />` props, URL state, fetching, controls, states | Accepted |
 | [0029](0029-pnpm-hardening.md) | pnpm hardening beyond the cooldown | Accepted |
 | [0030](0030-scss-tree-started-for-brandlist.md) | The SCSS tree, started early for `<BrandList />` | Accepted |
+| [0031](0031-pillar-4-delivery-equivalence-and-blocks.md) | Pillar 4: build and delivery, the equivalence check, the remaining blocks | Accepted |
 
 Template: Status · Date · Context · Options considered · Decision · Consequences ·
 Revisit when · Sources.

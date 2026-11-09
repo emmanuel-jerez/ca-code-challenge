@@ -1,0 +1,32 @@
+// A brand's HQ, founding year and website, as a description list.
+@use "../tools" as t;
+
+@layer components {
+  .c-brand-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px; // WP value, off-scale
+    margin: 14px 0 0; // WP value, off-scale
+    color: t.color("text-muted");
+    font-size: t.font-size("md");
+  }
+
+  .c-brand-facts__item {
+    display: flex;
+    gap: 0.25em;
+  }
+
+  // WordPress used <strong>: bold and in the text color.
+  .c-brand-facts__label {
+    color: t.color("text");
+    font-weight: 700;
+
+    &::after {
+      content: ":";
+    }
+  }
+
+  .c-brand-facts__value {
+    margin: 0;
+  }
+}
