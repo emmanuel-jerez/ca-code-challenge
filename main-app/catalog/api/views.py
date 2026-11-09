@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+from django.views.decorators.cache import cache_control
+from django.views.decorators.http import conditional_page
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
@@ -28,6 +30,12 @@ class BrandPagination(PageNumberPagination):
         self.page_size = page_size
 
 
+# Browsers and proxies may store the listing but must revalidate every time;
+# the ETag turns an unchanged page into a 304. That saves bandwidth, not
+# database work. No server-side cache: Django's cache middleware had seven
+# data-exposure CVEs in 2026 (ADR 0027).
+@conditional_page
+@cache_control(public=True, no_cache=True)
 @api_view(["GET"])
 # Public, and never reads the Authorization header: an expired token must not
 # turn the public listing into a 401.

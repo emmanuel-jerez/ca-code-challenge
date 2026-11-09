@@ -247,3 +247,24 @@ def test_an_empty_listing_costs_one_query(
 ) -> None:
     with django_assert_num_queries(1):
         get_json(client)
+
+
+@pytest.mark.django_db
+def test_clients_revalidate_and_get_a_304_when_nothing_changed(
+    client: Client, make_brand: MakeBrand
+) -> None:
+    make_brand()
+
+    first = client.get("/api/brands/")
+    again = client.get("/api/brands/", headers={"if-none-match": first["ETag"]})
+
+    directives = {d.strip() for d in first["Cache-Control"].split(",")}
+    assert directives == {"public", "no-cache"}
+    assert again.status_code == 304
+
+
+@pytest.mark.django_db
+def test_only_json_is_served(client: Client) -> None:
+    response = client.get("/api/brands/", headers={"accept": "text/html"})
+
+    assert response.status_code == 406
