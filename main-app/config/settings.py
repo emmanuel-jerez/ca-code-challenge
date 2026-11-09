@@ -30,6 +30,7 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 # roles (AGENTS.md), and the admin is out of scope (CHALLENGE.md).
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
+    "rest_framework",
     "catalog",
     "wp_import",
 ]
@@ -78,6 +79,22 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = False
 USE_TZ = True
+
+REST_FRAMEWORK = {
+    # JSON in and out only: most 2026 DRF and Django advisories sat in the
+    # form/multipart parsers and the browsable API (ADR 0015).
+    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    # No session or basic auth: this app has no passwords. The bearer-token
+    # class from the shared library arrives with the auth service (Pillar 5).
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    # Deny by default; public views opt in with AllowAny. With no
+    # authentication classes, IsAuthenticated refuses everyone.
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    # DRF's default (AnonymousUser) imports django.contrib.auth, which this
+    # app doesn't install.
+    "UNAUTHENTICATED_USER": None,
+}
 
 # Content Security Policy (ADR 0017): scripts and styles from our origin only,
 # no 'unsafe-inline'. Report-only until reports are clean.
