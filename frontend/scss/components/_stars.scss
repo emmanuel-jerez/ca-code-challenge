@@ -1,0 +1,43 @@
+@use "../tools" as t;
+
+@layer components {
+  // The stars only decorate: 2.15:1 is too faint to carry meaning, so the
+  // number next to them does.
+  .c-stars {
+    // Component tokens, so a variant can recolor the stars in one place.
+    --stars-full: #{t.color("accent")};
+    --stars-empty: #{t.color("border-strong")};
+
+    display: inline-flex;
+    align-items: center;
+    gap: 2px; // WP value, off-scale
+    font-size: t.font-size("md");
+    letter-spacing: 1px;
+  }
+
+  .c-stars__icons {
+    display: inline-flex;
+    gap: 2px; // WP value, off-scale
+  }
+
+  .c-stars__star {
+    color: var(--stars-full);
+  }
+
+  .c-stars__star--empty {
+    color: var(--stars-empty);
+  }
+
+  .c-stars__value {
+    margin-inline-start: t.space(2);
+    color: t.color("text");
+    font-size: t.font-size("sm");
+    font-weight: 600;
+  }
+
+  .c-stars--unrated {
+    color: t.color("text-muted");
+    font-size: t.font-size("xs");
+    letter-spacing: normal;
+  }
+}

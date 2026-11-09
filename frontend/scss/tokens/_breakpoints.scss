@@ -1,0 +1,12 @@
+// Sass only, never custom properties: var() isn't allowed in media or
+// container queries.
+
+// Viewport widths, for page-level layout.
+$breakpoints: (
+  "sm": 640px,
+);
+
+// Container widths, for components that adapt to their slot, not the window.
+$container-breakpoints: (
+  "md": 40rem,
+);

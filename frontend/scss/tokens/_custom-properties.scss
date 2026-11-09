@@ -1,0 +1,37 @@
+// The only token file that emits CSS: the semantic tokens as custom
+// properties on :root. Only theme.scss loads it, so :root appears once.
+@use "sass:meta";
+@use "index" as tok;
+
+@layer tokens {
+  :root {
+    @each $name, $value in tok.$color {
+      --color-#{$name}: #{$value};
+    }
+    @each $name, $value in tok.$font {
+      // inspect() keeps the quotes around "Segoe UI".
+      --font-#{$name}: #{meta.inspect($value)};
+    }
+    @each $name, $value in tok.$font-size {
+      --font-size-#{$name}: #{$value};
+    }
+    @each $name, $value in tok.$line-height {
+      --line-height-#{$name}: #{$value};
+    }
+    @each $name, $value in tok.$space {
+      --space-#{$name}: #{$value};
+    }
+    @each $name, $value in tok.$radius {
+      --radius-#{$name}: #{$value};
+    }
+    @each $name, $value in tok.$shadow {
+      --shadow-#{$name}: #{$value};
+    }
+    @each $name, $value in tok.$duration {
+      --duration-#{$name}: #{$value};
+    }
+    @each $name, $value in tok.$layout {
+      --layout-#{$name}: #{$value};
+    }
+  }
+}

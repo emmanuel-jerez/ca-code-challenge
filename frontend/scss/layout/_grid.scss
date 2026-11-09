@@ -1,0 +1,12 @@
+@use "../tools" as t;
+
+@layer layout {
+  // Intrinsically responsive: min(100%, …) lets a column shrink below the
+  // card minimum on narrow screens, so there's no overflow at 320px and no
+  // media query (the WordPress theme needed one).
+  .l-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, #{t.layout("card-min")}), 1fr));
+    gap: t.space(5);
+  }
+}

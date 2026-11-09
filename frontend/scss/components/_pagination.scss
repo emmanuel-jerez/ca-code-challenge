@@ -1,0 +1,39 @@
+@use "../tools" as t;
+
+@layer components {
+  .c-pagination__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: t.space(2);
+    margin: t.space(6) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  // At least 24×24px including the border (WCAG 2.5.8).
+  .c-pagination__link,
+  .c-pagination__end,
+  .c-pagination__gap {
+    display: inline-block;
+    padding: 6px 12px; // WP value, off-scale
+    border: 1px solid transparent;
+    border-radius: t.radius("sm");
+  }
+
+  .c-pagination__link {
+    background: t.color("surface");
+    border-color: t.color("border");
+    color: t.color("text");
+
+    &[aria-current="page"] {
+      background: t.color("primary");
+      border-color: t.color("primary");
+      color: t.color("on-primary");
+    }
+  }
+
+  .c-pagination__end,
+  .c-pagination__gap {
+    color: t.color("text-muted");
+  }
+}

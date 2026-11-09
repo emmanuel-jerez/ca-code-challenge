@@ -1,0 +1,155 @@
+// <BrandList />'s own parts: filters, results, messages. Cards, badges,
+// stars and pagination come from their shared blocks (ADR 0023).
+@use "../tools" as t;
+
+@layer components {
+  // Adapts to the slot Django puts it in, not to the viewport.
+  .c-brand-list {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: t.space(6);
+  }
+
+  .c-brand-list__form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: t.space(4) t.space(6);
+  }
+
+  .c-brand-list__industries {
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .c-brand-list__legend,
+  .c-brand-list__label {
+    padding: 0;
+    font-size: t.font-size("sm");
+    font-weight: 600;
+  }
+
+  .c-brand-list__legend {
+    margin-block-end: t.space(2);
+  }
+
+  .c-brand-list__options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: t.space(2) t.space(4);
+  }
+
+  // Each row is at least 24px tall (WCAG 2.5.8); clicking the label toggles.
+  .c-brand-list__option {
+    display: inline-flex;
+    align-items: center;
+    gap: t.space(2);
+    min-block-size: t.space(6);
+    font-size: t.font-size("md");
+    cursor: pointer;
+  }
+
+  // Still the native checkbox, only tinted, so the browser draws its states.
+  .c-brand-list__checkbox {
+    inline-size: 1.125rem;
+    block-size: 1.125rem;
+    margin: 0;
+    accent-color: t.color("primary");
+  }
+
+  .c-brand-list__sort {
+    display: flex;
+    flex-direction: column;
+    gap: t.space(1);
+  }
+
+  // A custom-styled control needs a 3:1 outline (WCAG 1.4.11); the theme's
+  // border color is 1.24:1, so the muted text color draws it.
+  .c-brand-list__select {
+    min-block-size: t.space(10);
+    padding: t.space(2) t.space(3);
+    background: t.color("surface");
+    border: 1px solid t.color("text-muted");
+    border-radius: t.radius("sm");
+    color: t.color("text");
+    font: inherit;
+  }
+
+  .c-brand-list__button {
+    min-block-size: t.space(8);
+    padding: t.space(1) t.space(3);
+    background: t.color("surface");
+    border: 1px solid t.color("primary");
+    border-radius: t.radius("sm");
+    color: t.color("primary");
+    font: inherit;
+    font-size: t.font-size("sm");
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      background: t.color("primary-subtle");
+    }
+  }
+
+  // Focused by script after Retry, Clear filters or a page change. Keep it
+  // clear of a sticky header (WCAG 2.4.11).
+  .c-brand-list__heading {
+    margin: 0 0 t.space(4);
+    font-size: t.font-size("xl");
+    letter-spacing: -0.01em;
+    scroll-margin-block-start: t.space(6);
+  }
+
+  .c-brand-list__grid {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  // The previous results, while the next ones load.
+  .c-brand-list__grid--stale {
+    opacity: 0.6;
+
+    @include t.motion-safe {
+      transition: opacity t.duration("fast");
+    }
+  }
+
+  // A grid item, so the card fills the row's height.
+  .c-brand-list__item {
+    display: grid;
+  }
+
+  .c-brand-list__message {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: t.space(3);
+    padding: t.space(6);
+    background: t.color("surface");
+    border: 1px solid t.color("border");
+    border-radius: t.radius("md");
+  }
+
+  .c-brand-list__message--error {
+    border-color: t.color("danger");
+  }
+
+  .c-brand-list__message-text {
+    margin: 0;
+  }
+
+  // Narrow slots: stack the filters and let the sort control fill the width.
+  @include t.container-below("md") {
+    .c-brand-list__form {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+}

@@ -1,0 +1,26 @@
+@use "../tools" as t;
+
+@layer base {
+  // No root font-size: the WordPress theme forced 16px, which overrides the
+  // reader's browser setting. The default is 16px anyway.
+  body {
+    background: t.color("background");
+    color: t.color("text");
+    font-family: t.font("sans");
+    line-height: t.line-height("body");
+  }
+
+  a {
+    color: t.color("primary");
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  // Not in the WordPress theme, which relied on browser defaults.
+  :focus-visible {
+    @include t.focus-ring;
+  }
+}

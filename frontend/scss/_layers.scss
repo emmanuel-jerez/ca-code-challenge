@@ -1,0 +1,4 @@
+// The cascade order, stated once. theme.scss loads this first, so it is the
+// first statement in the CSS and fixes the order before any layer block.
+// Later layers win regardless of specificity: a utility beats a component.
+@layer reset, tokens, base, layout, components, utilities;
