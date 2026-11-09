@@ -5,13 +5,16 @@ type is written out here, and a model change can't silently change the
 contract the frontend's Zod schema checks (ADR 0010).
 """
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from django.utils.text import Truncator
 from rest_framework import serializers
 
 from catalog.api.query import TOP_REVIEWS
 from catalog.models import Brand, Review
+
+if TYPE_CHECKING:
+    from rest_framework.utils.serializer_helpers import ReturnDict
 
 SNIPPET_LENGTH = 160
 
@@ -49,8 +52,9 @@ class BrandCardSerializer(serializers.Serializer[Brand]):
     short_description = serializers.CharField()
     top_review = serializers.SerializerMethodField()
 
-    def get_top_review(self, brand: Brand) -> dict[str, Any] | None:
+    def get_top_review(self, brand: Brand) -> ReturnDict[str, object] | None:
         # Set by brand_cards()'s prefetch. getattr because the attribute
-        # exists only on brands loaded through it.
+        # exists only on brands loaded through it; the annotation states what
+        # Prefetch(to_attr=...) always stores there, a list of reviews.
         top: list[Review] = getattr(brand, TOP_REVIEWS)
         return TopReviewSerializer(top[0]).data if top else None
