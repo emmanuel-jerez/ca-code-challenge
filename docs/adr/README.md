@@ -41,6 +41,7 @@ original's status line (0018).
 | [0031](0031-pillar-4-delivery-equivalence-and-blocks.md) | Pillar 4: build and delivery, the equivalence check, the remaining blocks | Accepted |
 | [0032](0032-pillar-4-delivery-defaults.md) | Pillar 4: how `theme.css` and `<BrandList />` reach Django pages | Accepted |
 | [0033](0033-pillar-5-auth-service.md) | Pillar 5: the auth service (roles, login, throttles, key, import) | Accepted |
+| [0034](0034-pillar-6-shared-library-and-patch.md) | Pillar 6: the shared library, its use in both services, and the `PATCH` | Accepted |
 
 Template: Status · Date · Context · Options considered · Decision · Consequences ·
 Revisit when · Sources.
