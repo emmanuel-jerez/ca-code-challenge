@@ -10,7 +10,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 ## Project status (2026-11-09)
 
-**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) has every block, checked against `reference/theme.css`. The Docker build compiles both, and Django serves them: every page uses the theme, and `/brand/` hosts the component. Pillars 5 and 6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
+**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) has every block, checked against `reference/theme.css`. The Docker build compiles both, and Django serves them: every page uses the theme, and `/brand/` hosts the component. The auth service (Pillar 5) runs in its own container with its own database: it imports the WordPress users, logs them in and publishes its signing key. The editor-only `PATCH` and the shared library (Pillar 6) are next.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
 
 ### Done
 
@@ -18,6 +18,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 - **Pillar 2: `GET /api/brands/`**: filtered, sorted and paginated brand cards, plus a contract fixture for the frontend. See [Brand listing API](#brand-listing-api-pillar-2) below.
 - **Pillar 3: `<BrandList />`** in [frontend/](frontend/): the React component, its tests, a dev page, and the part of the SCSS tree it needs. See [`<BrandList />`](#brandlist--pillar-3) below.
 - **Pillar 4: the SCSS tree** in [frontend/scss/](frontend/scss/): tokens, tools and every block the pages and the component use, with a test that compares the output with `reference/theme.css`. The image's Node stage builds it and the component, and `/brand/` mounts the component. See [SCSS](#scss-pillar-4) below.
+- **Pillar 5: the auth service** in [auth-service/](auth-service/): users imported from WordPress, `reader` and `editor` roles, `POST /api/token/` and the JWKS. See [Auth service](#auth-service-pillar-5) below.
 - **Agent guidance.**
   - [AGENTS.md](AGENTS.md) (loaded through `CLAUDE.md`) holds the project rules, each with its reason: the accepted stack, security rules, code style, and the auth and frontend rules.
   - Project skills live in `.agents/skills/`. Run `make skills` once per checkout so Claude Code can load them.
@@ -29,7 +30,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - one deeper note per pillar ([1](docs/research/pillar-1-django-backend.md), [2](docs/research/pillar-2-brands-api.md), [3](docs/research/pillar-3-brandlist-component.md), [4](docs/research/pillar-4-scss-architecture.md), [5](docs/research/pillar-5-auth-service.md), [6](docs/research/pillar-6-shared-library.md)).
 
   Every option is weighed by its security cost and its long-term stability, and data facts are measured from `db/dump.sql`.
-- **Decision records.** [docs/adr/](docs/adr/README.md) holds 33 records (0000–0032). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
+- **Decision records.** [docs/adr/](docs/adr/README.md) holds 34 records (0000–0033). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
   - **Stack:**
     - Django 5.2 LTS on Python 3.14, with a security floor (`>=5.2.18`);
     - DRF, JSON only;
@@ -79,7 +80,13 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
     - revocation within one token lifetime;
     - 503 when keys can't be fetched;
     - imported users get no usable password;
-    - scrypt for new passwords.
+    - scrypt for new passwords;
+    - roles are Groups, and a `Scope` model holds the token's scope strings;
+    - login by username or email, one `401 invalid_credentials` for every failure;
+    - per-address and per-account throttles on a shared cache, no lockout;
+    - no admin: roles change with management commands;
+    - the signing key is a Compose file secret, generated in the auth image;
+    - this pull request is the auth service only; the `PATCH` arrives with the library.
   - **Pillar 6:**
     - `brandreviews-authz`, built with `uv_build`;
     - installed by local path;
@@ -89,17 +96,16 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 | Deliverable | State |
 |---|---|
-| Pillar 5: auth service (users, login, roles, JWKS) and the editor-only `PATCH /api/brands/<slug>/` | Not started |
+| The editor-only `PATCH /api/brands/<slug>/` in the main app | Not started. Built with the shared library (ADR 0033) |
 | Pillar 6: shared library with its own tests | Not started |
-| Docker Compose services for the auth service and its database | Not started (the main app's are done) |
-| README sections the challenge requires: getting a token, running the library tests, how a library version reaches each service | Not written. Each is added with the code it describes (running the main app, the import, the React component and the modeling decisions are written) |
+| The main-app import reading the auth service's user map (ADR 0020) | Not started. `make auth-map` writes the map |
+| README sections the challenge requires: calling the protected endpoint, running the library tests, how a library version reaches each service | Not written. Each is added with the code it describes (getting a token is written) |
 | CI | None |
 
 Still open, with options in the research notes:
 - `PATCH` concurrency;
-- whether the auth service has an admin;
 
-Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to it in `main-app/` in its own change after it clears (ADR 0014).
+Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to it in `main-app/` and `auth-service/` in its own change after it clears (ADR 0014).
 
 ## Main app (Pillar 1)
 
@@ -109,7 +115,7 @@ The Django app in [main-app/](main-app/) replaces the WordPress site: models, a 
 
 ```bash
 cp .env.example .env        # once; the defaults work locally
-make up                     # WordPress, MariaDB, the main app and its Postgres
+make up                     # WordPress, MariaDB, the main app, the auth service, their Postgres
 make import                 # copy WordPress content into the main app
 ```
 
@@ -356,6 +362,77 @@ WordPress's seven inline styles became modifiers (`l-section--alt`, `c-hero--com
 - every industry in the filter, even one with no brands;
 - Zod without its JIT compiler, so parsing never compiles code from strings, which the CSP forbids.
 
+## Auth service (Pillar 5)
+
+The Django project in [auth-service/](auth-service/) owns users, passwords and roles, and mints the access tokens. It has its own container and its own Postgres. The main app never gets its database credentials and stores only each user's random `external_id` (ADRs 0006, 0020, 0033).
+
+### Run it
+
+```bash
+make up                     # also generates secrets/jwt_ed25519.pem the first time
+make auth-import            # copy the 9 WordPress users (safe to re-run)
+docker compose exec auth-service python manage.py changepassword admin
+```
+
+Imported users have no usable password (ADR 0024), so set one for each account you want to log in with. `changepassword` prompts and runs the password validators (at least 12 characters).
+
+### Get a token
+
+```bash
+curl -s -X POST http://localhost:8001/api/token/ \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "admin", "password": "<the password you set>"}'
+```
+
+```json
+{"access_token": "eyJhbGciOiJFZERTQSIs…", "token_type": "Bearer", "expires_in": 600, "scope": "brands:read brands:write"}
+```
+
+- `username` also accepts the email address, in any case, as WordPress does.
+- Every failure (unknown user, wrong password, inactive, no password set) returns the same `401 {"error": "invalid_credentials"}`.
+- Too many attempts return `429`: 20 per minute per address, 5 per minute per account.
+- The token is an EdDSA JWT (`typ: at+jwt`) that lives 10 minutes. It carries `sub` (the user's `external_id`), `scope`, `iss`, `aud: brands-api`, `client_id`, `iat`, `nbf`, `exp` and `jti`, and no username, email or role (ADR 0016).
+- The public key is at <http://localhost:8001/.well-known/jwks.json>. The main app will verify tokens locally against it and never call the auth service per request.
+
+The protected `PATCH /api/brands/<slug>/` comes with the shared library (Pillar 6).
+
+### Roles
+
+`reader` grants `brands:read`; `editor` grants `brands:read brands:write`. The import maps WordPress's administrator to `editor` (not superuser) and subscribers to `reader`. The main app checks scopes, never role names.
+
+```bash
+docker compose exec auth-service python manage.py grant_role sarah_k editor
+docker compose exec auth-service python manage.py revoke_role sarah_k editor
+```
+
+A change shows up in the user's next token, so within 10 minutes. There's no admin site: it would bring sessions, cookies, CSRF and a second login form into the service that holds the passwords (ADR 0033).
+
+### The user import
+
+- **Re-running is safe.** Users upsert on their WordPress id. A re-run follows a login or email changed in WordPress, and never touches a password, a role or `is_active` set here since. A second run reports `0 created, 0 updated, 9 unchanged`.
+- **Preview first** with `make auth-import-dry-run`.
+- **Least privilege.** The importer's MariaDB user can read one view: each user's id, login, email and `wp_capabilities` value. It can't read password hashes, or the session tokens WordPress keeps in `wp_usermeta`. On a MariaDB volume created before this change, run `make wp-import-user` once.
+- **For the main app:** `make auth-map` writes `secrets/user-map.json`, which maps WordPress ids to `external_id`s with no names, emails or hashes (ADR 0020).
+
+### The signing key
+
+`make auth-key` (run by `make up` when the key is missing) generates an Ed25519 key inside the auth image, so it needs only Docker. The file belongs to the container's user (uid 10001) with mode `0400`, and `secrets/` is gitignored. If the key is missing or wrong, gunicorn refuses to start. To rotate it, follow the runbook in ADR 0033. Rotating logs everyone out within 5 minutes.
+
+### Tests and checks
+
+The tests use the compose Postgres on `127.0.0.1:5434` (`docker compose up -d auth-db`).
+
+```bash
+cd auth-service
+uv run pytest               # or `make test-auth` from the repo root
+uv run mypy .
+uv run ruff check . && uv run ruff format --check .
+```
+
+One test imports the real WordPress users. It skips itself when MariaDB isn't reachable.
+
+**AI defaults accepted** (ADR 0033, items 9–18): a MariaDB view instead of column grants; the key generated in the image and owned by uid 10001; the key loaded in `wsgi.py`, so only the web server needs it; a re-import that follows logins and emails but never passwords or roles; a role-less user gets an empty-scope token; no `WWW-Authenticate` header on the 401; the throttle rates; the clickjacking middleware; the main app reading the user map deferred to Pillar 6.
+
 ## The WordPress source site
 
 Self-contained, reproducible WordPress site used as the migration source.
@@ -416,7 +493,7 @@ WP core files and the default themes (e.g. twentytwentyfour) live inside the `wp
 ### Make targets
 
 ```
-make up         # start db + wordpress + phpmyadmin + main-db + main-app
+make up         # start db + wordpress + phpmyadmin + main app + auth service (and their Postgres)
 make down       # stop containers (keeps volumes)
 make reset      # stop AND wipe volumes (next 'up' re-imports dump.sql)
 make logs       # tail wordpress + db
@@ -426,8 +503,13 @@ make dump       # export the current DB to db/dump.sql
 make status     # show running services
 make import     # import WordPress content into the main app (safe to re-run)
 make import-dry-run  # same checks and counts, then roll back
-make wp-import-user  # create the read-only import user on an existing db volume
+make wp-import-user  # create the read-only import users on an existing db volume
 make test       # run the main app's tests
+make auth-key   # generate the auth service's signing key (once; `make up` does it)
+make auth-import     # import WordPress users into the auth service (safe to re-run)
+make auth-import-dry-run  # same checks and counts, then roll back
+make auth-map   # write secrets/user-map.json for the main app
+make test-auth  # run the auth service's tests
 ```
 
 ### Rebuilding the dump from scratch

@@ -1,12 +1,13 @@
 SHELL := /bin/bash
 COMPOSE := docker compose
 WPCLI := $(COMPOSE) run --rm wpcli
+AUTH_KEY := secrets/jwt_ed25519.pem
 
-.PHONY: help up down restart logs reset wp bootstrap dump status skills wp-import-user import import-dry-run test contracts
+.PHONY: help up down restart logs reset wp bootstrap dump status skills wp-import-user import import-dry-run test contracts auth-key auth-import auth-import-dry-run auth-map test-auth
 
 help:
 	@echo "Targets:"
-	@echo "  up              Start db + wordpress + phpmyadmin + main app"
+	@echo "  up              Start db + wordpress + phpmyadmin + main app + auth service"
 	@echo "  down            Stop containers (preserve data)"
 	@echo "  reset           Stop containers AND wipe DB volume (full cold start on next 'up')"
 	@echo "  logs            Tail wordpress + db logs"
@@ -19,10 +20,16 @@ help:
 	@echo "  import          Import WordPress content into the main app (safe to re-run)"
 	@echo "  import-dry-run  Same checks and counts, then roll back"
 	@echo "  test            Run the main app's tests (needs main-db running)"
+	@echo "  auth-key        Generate the auth service's Ed25519 signing key (once)"
+	@echo "  auth-import     Import WordPress users into the auth service (safe to re-run)"
+	@echo "  auth-import-dry-run  Same checks and counts, then roll back"
+	@echo "  auth-map        Write secrets/user-map.json (wp_user_id -> external_id)"
+	@echo "  test-auth       Run the auth service's tests (needs auth-db running)"
 	@echo "  contracts       Regenerate contracts/ from the API after an intended change"
 
-up:
-	$(COMPOSE) up -d db wordpress phpmyadmin main-db main-app
+# The auth service won't start without its signing key, so make it first.
+up: $(AUTH_KEY)
+	$(COMPOSE) up -d db wordpress phpmyadmin main-db main-app auth-db auth-service
 
 down:
 	$(COMPOSE) down
@@ -42,7 +49,7 @@ bootstrap:
 
 dump:
 	@mkdir -p db
-	$(COMPOSE) exec db sh -c 'mariadb-dump -u root -p"$$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 --add-drop-table --skip-extended-insert "$$MYSQL_DATABASE"' > db/dump.sql
+	$(COMPOSE) exec db sh -c 'mariadb-dump -u root -p"$$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 --add-drop-table --skip-extended-insert --ignore-table="$$MYSQL_DATABASE.auth_import_users" "$$MYSQL_DATABASE"' > db/dump.sql
 	@echo "Wrote db/dump.sql ($$(wc -l < db/dump.sql) lines)"
 
 status:
@@ -52,8 +59,9 @@ skills:
 	./scripts/link-agent-skills.sh
 
 wp-import-user:
-	$(COMPOSE) up -d db
+	$(COMPOSE) up -d --wait db
 	$(COMPOSE) exec db bash /docker-entrypoint-initdb.d/02-wp-import-user.sh
+	$(COMPOSE) exec db bash /docker-entrypoint-initdb.d/03-wp-auth-import-user.sh
 
 import:
 	$(COMPOSE) run --rm --build wp-import
@@ -66,3 +74,28 @@ test:
 
 contracts:
 	cd main-app && UPDATE_CONTRACTS=1 uv run pytest catalog/tests/test_brand_list_contract.py
+
+# Generated in the auth image, so it needs only Docker. A file target: made
+# once, never overwritten. To rotate, follow ADR 0033.
+auth-key: $(AUTH_KEY)
+
+$(AUTH_KEY):
+	@mkdir -p secrets
+	$(COMPOSE) build auth-service
+	docker run --rm --user 0:0 --network none -v "$(CURDIR)/secrets:/secrets" \
+		brandreviews/auth-service:local python keygen.py /secrets/jwt_ed25519.pem
+
+auth-import:
+	$(COMPOSE) run --rm --build auth-import
+
+auth-import-dry-run:
+	$(COMPOSE) run --rm --build auth-import sh -c "python manage.py migrate --noinput && python manage.py import_wp_users --dry-run"
+
+# The map the main app's import will read to fill Reviewer.auth_user_id (ADR 0020).
+auth-map:
+	@mkdir -p secrets
+	$(COMPOSE) exec -T auth-service python manage.py export_user_map > secrets/user-map.json
+	@echo "Wrote secrets/user-map.json"
+
+test-auth:
+	cd auth-service && uv run pytest
