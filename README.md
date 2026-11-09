@@ -10,14 +10,14 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 ## Project status (2026-11-09)
 
-**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) has every block, checked against `reference/theme.css`; serving it from Django is next. Pillars 5 and 6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
+**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) has every block, checked against `reference/theme.css`. The Docker build compiles both, and Django serves them: every page uses the theme, and `/brand/` hosts the component. Pillars 5 and 6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
 
 ### Done
 
 - **Pillar 1: Django app** in [main-app/](main-app/): models, the re-runnable WordPress import, and the homepage, brand and review pages. See [Main app](#main-app-pillar-1) below.
 - **Pillar 2: `GET /api/brands/`**: filtered, sorted and paginated brand cards, plus a contract fixture for the frontend. See [Brand listing API](#brand-listing-api-pillar-2) below.
 - **Pillar 3: `<BrandList />`** in [frontend/](frontend/): the React component, its tests, a dev page, and the part of the SCSS tree it needs. See [`<BrandList />`](#brandlist--pillar-3) below.
-- **Pillar 4: the SCSS tree** in [frontend/scss/](frontend/scss/): tokens, tools and every block the pages and the component use, with a test that compares the output with `reference/theme.css`. See [SCSS](#scss-pillar-4) below.
+- **Pillar 4: the SCSS tree** in [frontend/scss/](frontend/scss/): tokens, tools and every block the pages and the component use, with a test that compares the output with `reference/theme.css`. The image's Node stage builds it and the component, and `/brand/` mounts the component. See [SCSS](#scss-pillar-4) below.
 - **Agent guidance.**
   - [AGENTS.md](AGENTS.md) (loaded through `CLAUDE.md`) holds the project rules, each with its reason: the accepted stack, security rules, code style, and the auth and frontend rules.
   - Project skills live in `.agents/skills/`. Run `make skills` once per checkout so Claude Code can load them.
@@ -29,7 +29,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - one deeper note per pillar ([1](docs/research/pillar-1-django-backend.md), [2](docs/research/pillar-2-brands-api.md), [3](docs/research/pillar-3-brandlist-component.md), [4](docs/research/pillar-4-scss-architecture.md), [5](docs/research/pillar-5-auth-service.md), [6](docs/research/pillar-6-shared-library.md)).
 
   Every option is weighed by its security cost and its long-term stability, and data facts are measured from `db/dump.sql`.
-- **Decision records.** [docs/adr/](docs/adr/README.md) holds 32 records (0000–0031). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
+- **Decision records.** [docs/adr/](docs/adr/README.md) holds 33 records (0000–0032). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
   - **Stack:**
     - Django 5.2 LTS on Python 3.14, with a security floor (`>=5.2.18`);
     - DRF, JSON only;
@@ -89,7 +89,6 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 | Deliverable | State |
 |---|---|
-| Pillar 4: SCSS source tree under `frontend/scss/` | Every block is built and compared with `reference/theme.css` (ADRs 0030, 0031). Still to do: serving `theme.css` and the component from Django (Node build stage, template tag, `/brand/` page) |
 | Pillar 5: auth service (users, login, roles, JWKS) and the editor-only `PATCH /api/brands/<slug>/` | Not started |
 | Pillar 6: shared library with its own tests | Not started |
 | Docker Compose services for the auth service and its database | Not started (the main app's are done) |
@@ -104,7 +103,7 @@ Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to 
 
 ## Main app (Pillar 1)
 
-The Django app in [main-app/](main-app/) replaces the WordPress site: models, a re-runnable import from WordPress's MariaDB, and three server-rendered pages at the same paths as WordPress's permalinks.
+The Django app in [main-app/](main-app/) replaces the WordPress site: models, a re-runnable import from WordPress's MariaDB, and four server-rendered pages at the same paths as WordPress's permalinks. The image also builds the stylesheet and `<BrandList />` in a Node stage, and whitenoise serves them (ADRs 0031, 0032).
 
 ### Run it
 
@@ -114,7 +113,7 @@ make up                     # WordPress, MariaDB, the main app and its Postgres
 make import                 # copy WordPress content into the main app
 ```
 
-Then open <http://localhost:8000>, <http://localhost:8000/brand/acme-insurance/> or <http://localhost:8000/review/online-portal-feels-like-2010/>.
+Then open <http://localhost:8000>, <http://localhost:8000/brand/> (the `<BrandList />` component), <http://localhost:8000/brand/acme-insurance/> or <http://localhost:8000/review/online-portal-feels-like-2010/>. After changing the frontend or SCSS, rebuild with `docker compose up -d --build main-app`.
 
 On a MariaDB volume created before this change, the read-only import user doesn't exist yet. Run `make wp-import-user` once, or `make reset` to start from the dump again.
 
@@ -160,7 +159,7 @@ One test runs the real import against the WordPress MariaDB, checking the counts
 - **Industry is a foreign key.** Every brand has exactly one, and the import stops if that changes (ADR 0026).
 - **Content:** sanitized once at import with nh3. The raw HTML is kept for re-cleaning, and templates can't use `|safe` (a test enforces it). `website_url` must be http(s), checked in Python and by a database constraint.
 
-**AI defaults accepted** (ADR 0026, items 5–10): skipping unchanged rows by comparing stored values instead of a hash column; any bad row stops the run instead of being skipped; function views; no `/brand/`, `/review/` or `/about/` pages yet, so the nav shows only Home; no `django.contrib.auth` or admin in the main app.
+**AI defaults accepted** (ADR 0026, items 5–10): skipping unchanged rows by comparing stored values instead of a hash column; any bad row stops the run instead of being skipped; function views; no `/review/` or `/about/` pages yet (`/brand/` came with Pillar 4), so the nav shows only Home and Brands; no `django.contrib.auth` or admin in the main app.
 
 ## Brand listing API (Pillar 2)
 
@@ -224,7 +223,7 @@ The React component in [frontend/src/brand-list/](frontend/src/brand-list/) list
 
 ### Run it
 
-It needs Node 24.15+ and pnpm (the version is pinned in `package.json`), and the main app running with data (`make up` and `make import`; see [Run it](#run-it) above).
+In the app, it's at <http://localhost:8000/brand/> after `make up` and `make import`; the Docker build compiles it. To work on it with hot reload, you need Node 24.15+ and pnpm (the version is pinned in `package.json`), with the main app running:
 
 ```bash
 cd frontend
@@ -232,7 +231,7 @@ pnpm install --frozen-lockfile
 pnpm dev                      # http://localhost:5173, /api proxied to localhost:8000
 ```
 
-The dev page ([frontend/index.html](frontend/index.html)) imitates the Django page that will host the component: a root element with `data-api-url`, and the industries in a `json_script` block. Mounting it on a real Django page comes with Pillar 4.
+The dev page ([frontend/index.html](frontend/index.html)) imitates the Django page that hosts the component: a root element with `data-api-url`, and the industries in a `json_script` block. On Django, the `/brand/` template renders both, and `{% vite_entry %}` reads Vite's manifest to load the hashed bundle (ADR 0032).
 
 ### Tests and checks
 
@@ -280,7 +279,9 @@ pnpm scss                     # scss/theme.scss → dist-css/theme.css
 pnpm test                     # includes the architecture and equivalence checks
 ```
 
-`pnpm scss` runs `sass --no-source-map --no-error-css --fatal-deprecation=1.107.0`: every deprecation is an error, and a failed compile writes no CSS. The Vite dev server compiles with the same policy. No Django page links `theme.css` yet; that comes with the Docker build stage (ADR 0031).
+`pnpm scss` runs `sass --no-source-map --no-error-css --fatal-deprecation=1.107.0`: every deprecation is an error, and a failed compile writes no CSS. The Vite dev server compiles with the same policy.
+
+In Docker, none of this is needed: the main app's image compiles `theme.css` in a Node stage, and every page links it (ADRs 0031, 0032). To run Django outside Docker, run `pnpm scss` and `pnpm build` first; the settings read the output from `frontend/dist-css/` and `frontend/dist/`.
 
 ### Structure
 
@@ -342,6 +343,18 @@ WordPress's seven inline styles became modifiers (`l-section--alt`, `c-hero--com
 - unstyled `l-page` and `l-main` hooks;
 - the specificity counter no longer counts `:not()` itself;
 - one shared compile helper for the tests.
+
+**AI defaults accepted** for delivery (ADR 0032):
+- pnpm through Corepack;
+- Node 24.22.1, the latest security release, past the cooldown;
+- a named Compose build context shared by both services that build the image;
+- no type check in the image;
+- the Vite manifest read from disk, not served;
+- whitenoise's defaults, with no Brotli;
+- no `modulepreload` links;
+- a `<noscript>` note on `/brand/`;
+- every industry in the filter, even one with no brands;
+- Zod without its JIT compiler, so parsing never compiles code from strings, which the CSP forbids.
 
 ## The WordPress source site
 

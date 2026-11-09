@@ -16,6 +16,8 @@ dependencies = [
     "gunicorn>=26.2.0,<27",
     # JSON-only API; the floor covers all five 2026 advisories (ADR 0015).
     "djangorestframework>=3.18.3,<3.19",
+    # Serves theme.css and the <BrandList /> build from the app (ADR 0008, 0031).
+    "whitenoise>=6.12.0,<7",
 ]
 
 [dependency-groups]

@@ -8,7 +8,7 @@ const SASS_FATAL_DEPRECATIONS = Version.parse('1.107.0');
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
-  // Where Django will serve the build (mounting comes with Pillar 4). The dev
+  // Where Django serves the build (STATICFILES_DIRS, ADR 0032). The dev
   // page stays at the root.
   base: command === 'build' ? '/static/frontend/' : '/',
   build: {

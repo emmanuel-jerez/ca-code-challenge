@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from django.db.models import F
 from django.shortcuts import get_object_or_404, render
 
-from catalog.models import Brand, Review, Status
+from catalog.models import Brand, Industry, Review, Status
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
@@ -41,6 +41,13 @@ def home(request: HttpRequest) -> HttpResponse:
             "recent_reviews": recent_reviews,
         },
     )
+
+
+def brand_list(request: HttpRequest) -> HttpResponse:
+    """WordPress's brand archive. <BrandList /> renders the list in the browser
+    from /api/brands/; the page passes it the industries for its filter."""
+    industries = list(Industry.objects.order_by("name", "id").values("slug", "name"))
+    return render(request, "catalog/brand_list.html", {"industries": industries})
 
 
 def brand_detail(request: HttpRequest, slug: str) -> HttpResponse:

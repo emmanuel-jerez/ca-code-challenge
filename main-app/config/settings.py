@@ -30,6 +30,7 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 # roles (AGENTS.md), and the admin is out of scope (CHALLENGE.md).
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
+    "django.contrib.staticfiles",
     "rest_framework",
     "catalog",
     "wp_import",
@@ -37,6 +38,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Above everything else except SecurityMiddleware, as whitenoise documents.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "config.csp.ContentSecurityPolicyMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -79,6 +82,26 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = False
 USE_TZ = True
+
+# Static files: theme.css and the <BrandList /> build, compiled in the image's
+# Node stage and served by whitenoise (ADRs 0008, 0031). The build lands in
+# ../frontend in a checkout and in /app/frontend in the image.
+FRONTEND_DIR = Path(os.environ.get("DJANGO_FRONTEND_DIR", BASE_DIR.parent / "frontend"))
+STATIC_URL = "static/"
+STATIC_ROOT: Path | None = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [
+    ("css", FRONTEND_DIR / "dist-css"),
+    ("frontend", FRONTEND_DIR / "dist"),
+]
+# Read by the vite_entry template tag. collectstatic skips the dot directory,
+# so the manifest isn't served.
+VITE_MANIFEST_PATH = FRONTEND_DIR / "dist" / ".vite" / "manifest.json"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Hashed names, so browsers can cache forever, plus gzipped copies. Brotli
+    # would need the optional Brotli package, which isn't installed.
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 REST_FRAMEWORK = {
     # JSON in and out only: most 2026 DRF and Django advisories sat in the

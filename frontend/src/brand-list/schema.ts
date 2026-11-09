@@ -4,6 +4,12 @@
 // the UI (ADR 0027's additive-only policy).
 import { z } from 'zod';
 
+// No code compiled from strings. Zod compiles object parsers with
+// new Function, which the CSP's script-src 'self' forbids; it would fall
+// back, but each page view would still log or report violations
+// (ADR 0032). Zod reads this when a schema is built, so it runs before any.
+z.config({ jitless: true });
+
 // The API's page-size cap (ADR 0022). Bounds the work a hostile or broken
 // response can cause, on top of Zod 4.6.6's fix for CVE-2023-54404.
 const MAX_PAGE_SIZE = 50;

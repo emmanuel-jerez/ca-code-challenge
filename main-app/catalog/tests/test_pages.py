@@ -85,6 +85,14 @@ def test_brand_page_shows_the_brand_and_its_reviews_newest_first(
 
 
 @pytest.mark.django_db
+def test_pages_link_the_theme_stylesheet_and_the_brands_page(client: Client) -> None:
+    html = client.get("/").content.decode()
+
+    assert '<link rel="stylesheet" href="/static/css/theme.css">' in html
+    assert '<a class="c-site-nav__link" href="/brand/">Brands</a>' in html
+
+
+@pytest.mark.django_db
 def test_review_page_shows_the_review_with_its_brand_and_author(
     client: Client,
     make_review: MakeReview,

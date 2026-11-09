@@ -10,7 +10,10 @@
 
 <section class="l-section" aria-labelledby="featured-brands">
   <div class="l-container">
-    <h2 class="l-section__title" id="featured-brands">Featured Brands</h2>
+    <div class="l-section__header">
+      <h2 class="l-section__title" id="featured-brands">Featured Brands</h2>
+      <a class="l-section__more" href="{% url 'catalog:brand-list' %}">All brands <span aria-hidden="true">&rarr;</span></a>
+    </div>
     <div class="l-grid">
       {% for brand in featured_brands %}
         {% include "catalog/_brand_card.html" %}
