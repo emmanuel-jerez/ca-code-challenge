@@ -76,12 +76,16 @@ for review in the Pillar 2 pull request.
 - **Snippet:** `content_text` cut with `Truncator.chars(160)`, ending in "…"
   when cut. It's plain text on the wire; clients render it as text. Truncator's
   `html=True` (CVE-2026-1285) is never used.
-- **Validation:** an unknown industry slug is a 400 naming it; a malformed
-  or empty one is reported the same way. A known industry with no published
-  brands is a 200 with an empty page. An empty `ordering` or `page_size`
-  (`?ordering=`) is a bad value, a 400, not a request for the default.
-  Unknown parameter names are ignored. A `page` that isn't a positive whole
-  number, or is past the end, keeps DRF's 404 (research §3.4).
+- **Validation:** an unknown industry slug is a 400 naming it. A malformed
+  or empty one is reported the same way, checked exactly as sent (no
+  trimming). A known industry with no published brands is a 200 with an
+  empty page. An empty `ordering` or `page_size` (`?ordering=`) is a bad
+  value, a 400, not a request for the default. A repeated `ordering` or
+  `page_size` uses its last value, as Django's `QueryDict` does. Unknown
+  parameter names are ignored.
+- **`page` stays DRF's** (ADR 0022, research §3.4): empty means page 1,
+  `last` means the last page, and any other value that isn't a page number,
+  or is past the end, is a 404.
 - **Errors:** DRF's default bodies. A 400 is a map from parameter name to a
   list of messages; a 404 is `{"detail": "…"}`.
 - **Versioning:** none. Compatibility policy: changes to `/api/brands/` are
