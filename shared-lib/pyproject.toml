@@ -1,0 +1,80 @@
+[project]
+name = "brandreviews-authz"
+# Bump on every change under src/ (scripts/check-shared-lib-version.sh fails
+# otherwise): a path source's uv.lock records the version, not the code, so a
+# bump is what makes each service re-lock (ADR 0025).
+version = "1.0.0"
+description = "Verifies the auth service's access tokens and checks their scopes, for both Brand Reviews services."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+# Wide ranges here; each service's uv.lock pins the exact versions (ADR 0025).
+dependencies = [
+    # Floors clear every 2026 PyJWT advisory (ADR 0016).
+    "PyJWT[crypto]>=2.15.1,<3",
+    # Imported directly (Ed25519PublicKey), so declared directly.
+    "cryptography>=50.0.2",
+]
+
+[project.optional-dependencies]
+# Only drf.py needs it. The services keep their tighter <3.19 pin (ADR 0015).
+drf = ["djangorestframework>=3.18.3,<4"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0,<10",
+    "mypy>=2.4.1,<2.5",
+    "ruff>=0.17.3,<0.18",
+    # The DRF adapter's tests configure Django in a conftest; no project, no
+    # database (docs/research/pillar-6-shared-library.md §4).
+    "Django>=5.2.18,<5.3",
+    "djangorestframework>=3.18.3,<3.19",
+    "django-stubs[compatible-mypy]>=6.1.2,<6.2",
+    "djangorestframework-stubs>=3.18.1,<3.19",
+]
+
+[build-system]
+# uv's bundled backend: building the library downloads nothing (ADR 0025).
+# Bump together with the uv binary in the Dockerfiles.
+requires = ["uv_build>=0.13.6,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Hold back releases younger than 7 days; most malicious releases are pulled
+# within days (AGENTS.md, ADR 0012). Never shorten or remove.
+exclude-newer = "7 days"
+# Rebuild non-editable installs when the code changes, not only the version.
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.py" }]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-markers", "--import-mode=importlib"]
+testpaths = ["tests"]
+# Lets tests import their helpers (conftest, fakes) by name under importlib mode.
+pythonpath = ["tests"]
+
+[tool.mypy]
+strict = true
+# No django-stubs plugin: it needs a settings module, and drf.py uses no ORM.
+exclude = ["^\\.venv/"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ANN", "S", "TC", "PGH", "TID251"]
+
+[tool.ruff.lint.per-file-ignores]
+# The adapter is the one module allowed to import Django and DRF.
+"src/brandreviews_authz/drf.py" = ["TID251"]
+# Tests configure Django for the adapter; assert is how pytest checks things;
+# tests pass literal test keys and token ids.
+"tests/**" = ["TID251", "S101", "S105", "S106"]
+
+[tool.ruff.lint.isort]
+# Test helpers imported by name (pytest's pythonpath = ["tests"]).
+known-local-folder = ["conftest", "jwks_server"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# The core must import and run without Django (CHALLENGE.md Pillar 6).
+"django".msg = "Only drf.py may import Django; the core stays framework-free."
+"rest_framework".msg = "Only drf.py may import DRF; the core stays framework-free."
