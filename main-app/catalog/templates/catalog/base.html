@@ -1,10 +1,11 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Brand Reviews{% endblock %}</title>
   {% block meta %}{% endblock %}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
 </head>
 <body class="l-page">
   <a class="u-skip-link" href="#main">Skip to content</a>
@@ -13,6 +14,7 @@
       <p class="c-site-header__title"><a class="c-site-header__home-link" href="{% url 'catalog:home' %}">Brand Reviews</a></p>
       <nav class="c-site-nav" aria-label="Primary">
         <a class="c-site-nav__link" href="{% url 'catalog:home' %}"{% if request.path == "/" %} aria-current="page"{% endif %}>Home</a>
+        {% url 'catalog:brand-list' as brands_url %}<a class="c-site-nav__link" href="{{ brands_url }}"{% if request.path == brands_url %} aria-current="page"{% endif %}>Brands</a>
       </nav>
     </div>
   </header>
@@ -22,5 +24,6 @@
   <footer class="c-site-footer">
     <div class="l-container">&copy; {% now "Y" %} Brand Reviews. Sample data for interview purposes.</div>
   </footer>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

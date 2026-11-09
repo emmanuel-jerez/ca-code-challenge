@@ -1,0 +1,27 @@
+{% extends "catalog/base.html" %}
+{% load vite %}
+
+{% block title %}Brands &ndash; Brand Reviews{% endblock %}
+
+{% block content %}
+<section class="c-hero c-hero--compact">
+  <div class="l-container">
+    <h1 class="c-hero__title">Brands</h1>
+    <p class="c-hero__lead">Browse all brands in our reviews directory.</p>
+  </div>
+</section>
+
+<section class="l-section">
+  <div class="l-container">
+    {# <BrandList /> renders here; it reads its config from these two (ADR 0028). #}
+    <div id="brand-list" data-api-url="{% url 'api:brand-list' %}">
+      <noscript><p class="c-empty">The brand list needs JavaScript. Each brand's page works without it.</p></noscript>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  {{ industries|json_script:"brand-list-industries" }}
+  {% vite_entry "src/brand-list/main.tsx" %}
+{% endblock %}
