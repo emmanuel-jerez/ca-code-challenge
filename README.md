@@ -104,6 +104,12 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 | The main-app import reading the auth service's user map (ADR 0020) | Not started. `make auth-map` writes the map; it gets its own pull request (ADR 0034) |
 | CI | None. `make test-shared` and `make check-shared` are what it would run for the library |
 
+### With more time
+
+- **Performance.** Build prototypes and benchmarks to improve query performance, overall database performance and app performance.
+- **Accessibility.** Test the accessibility features and run a full audit, so the site complies with the most up-to-date standard.
+- **Security.** Carry on with a security audit, backed by more security tools, so security is tested exhaustively.
+
 Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to it in `main-app/` and `auth-service/` in its own change after it clears (ADR 0014).
 
 ## Main app (Pillar 1)
