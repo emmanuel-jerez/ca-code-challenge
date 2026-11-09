@@ -1,0 +1,118 @@
+// A brand or review card. Server-rendered pages and <BrandList /> share it.
+@use "../tools" as t;
+
+@layer components {
+  .c-card {
+    // The title link's ::after covers the card, so the whole card is
+    // clickable with a single tab stop.
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; // WP value, off-scale
+    padding: 22px; // WP value, off-scale
+    background: t.color("surface");
+    border: 1px solid t.color("border");
+    border-radius: t.radius("md");
+    box-shadow: t.shadow("sm");
+
+    @include t.motion-safe {
+      transition:
+        box-shadow t.duration("fast"),
+        transform t.duration("fast");
+    }
+
+    &:hover {
+      box-shadow: t.shadow("md");
+
+      @include t.motion-safe {
+        transform: translateY(-1px);
+      }
+    }
+  }
+
+  .c-card__eyebrow {
+    margin: 0;
+  }
+
+  .c-card__title {
+    margin: 0;
+    font-size: t.font-size("lg");
+    font-weight: 600;
+  }
+
+  .c-card__link {
+    color: t.color("text");
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+    }
+
+    // Ring the whole card, which is what the link covers.
+    &:focus-visible {
+      outline: none;
+    }
+
+    &:focus-visible::after {
+      @include t.focus-ring;
+    }
+  }
+
+  .c-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: t.space(2);
+    margin: 0;
+    color: t.color("text-muted");
+    font-size: t.font-size("xs");
+  }
+
+  .c-card__excerpt {
+    margin: 0;
+    color: t.color("text-secondary");
+    font-size: 0.92rem; // WP value, off-scale
+  }
+
+  .c-card__quote {
+    margin: 0;
+    padding-inline-start: t.space(3);
+    border-inline-start: 3px solid t.color("primary-subtle-border");
+  }
+
+  .c-card__snippet {
+    margin: 0;
+    color: t.color("text-secondary");
+    font-size: t.font-size("sm");
+    font-style: italic;
+  }
+
+  .c-card__attribution {
+    margin-block-start: t.space(1);
+    color: t.color("text-muted");
+    font-size: t.font-size("xs");
+  }
+
+  .c-card__cite {
+    font-style: normal;
+  }
+
+  // A placeholder at a card's size while the first page loads.
+  .c-card--skeleton {
+    min-block-size: 11rem;
+    background: t.color("background");
+    box-shadow: none;
+
+    @include t.motion-safe {
+      animation: c-card-pulse 1.5s ease-in-out infinite;
+    }
+  }
+
+  @keyframes c-card-pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
+}

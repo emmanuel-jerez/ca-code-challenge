@@ -1,0 +1,9 @@
+@use "../tools" as t;
+
+@layer layout {
+  .l-container {
+    max-width: t.layout("container-max");
+    margin-inline: auto;
+    padding-inline: t.layout("gutter");
+  }
+}

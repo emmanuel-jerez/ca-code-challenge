@@ -10,12 +10,13 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 ## Project status (2026-11-09)
 
-**Pillars 1 and 2 (the Django app and its brand listing API) are built; Pillars 3–6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
+**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) is started; Pillars 5 and 6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
 
 ### Done
 
 - **Pillar 1: Django app** in [main-app/](main-app/): models, the re-runnable WordPress import, and the homepage, brand and review pages. See [Main app](#main-app-pillar-1) below.
 - **Pillar 2: `GET /api/brands/`**: filtered, sorted and paginated brand cards, plus a contract fixture for the frontend. See [Brand listing API](#brand-listing-api-pillar-2) below.
+- **Pillar 3: `<BrandList />`** in [frontend/](frontend/): the React component, its tests, a dev page, and the part of the SCSS tree it needs. See [`<BrandList />`](#brandlist--pillar-3) below.
 - **Agent guidance.**
   - [AGENTS.md](AGENTS.md) (loaded through `CLAUDE.md`) holds the project rules, each with its reason: the accepted stack, security rules, code style, and the auth and frontend rules.
   - Project skills live in `.agents/skills/`. Run `make skills` once per checkout so Claude Code can load them.
@@ -27,7 +28,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - one deeper note per pillar ([1](docs/research/pillar-1-django-backend.md), [2](docs/research/pillar-2-brands-api.md), [3](docs/research/pillar-3-brandlist-component.md), [4](docs/research/pillar-4-scss-architecture.md), [5](docs/research/pillar-5-auth-service.md), [6](docs/research/pillar-6-shared-library.md)).
 
   Every option is weighed by its security cost and its long-term stability, and data facts are measured from `db/dump.sql`.
-- **Decision records.** [docs/adr/](docs/adr/README.md) holds 28 records (0000–0027). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
+- **Decision records.** [docs/adr/](docs/adr/README.md) holds 31 records (0000–0030). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
   - **Stack:**
     - Django 5.2 LTS on Python 3.14, with a security floor (`>=5.2.18`);
     - DRF, JSON only;
@@ -38,7 +39,8 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
     - gunicorn + whitenoise on a digest-pinned image;
     - mypy strict + Ruff;
     - React 19 + Vite 8 client-only, TypeScript 6, `sass`;
-    - a 7-day dependency cooldown with approved security exceptions.
+    - a 7-day dependency cooldown with approved security exceptions;
+    - pnpm hardening: strict release age, no trust downgrades, no install scripts.
   - **Pillar 1:**
     - brand ratings computed from reviews and stored at import, with WordPress's (wrong) value kept for audit;
     - a thin `Reviewer` model linked to the auth service later;
@@ -54,11 +56,18 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
     - an unknown industry is a 400, while unknown parameter names are ignored;
     - DRF's default error bodies, no URL version, additive changes only;
     - a contract fixture with named cases.
+  - **Pillar 3:**
+    - filter, sort and page state in the URL, read with `useSyncExternalStore`, no router;
+    - a small fetch hook that aborts stale requests and `safeParse`s responses, no query library;
+    - native controls: industry checkboxes in a fieldset, a sort `<select>`, pagination links;
+    - the industry list passed in by the page (`json_script`), not fetched;
+    - mounting into a Django page deferred to Pillar 4.
   - **Pillar 3/4:**
     - BEM with `l-`/`c-`/`u-` prefixes;
     - `<BrandList />` styled by a global partial;
-    - Sass deprecations as build errors in place of stylelint;
-    - `sass` pinned exactly.
+    - Sass deprecations as build errors, plus a test on the compiled CSS, in place of stylelint;
+    - `sass` pinned exactly;
+    - one folder per cascade layer, role-named tokens, getters that fail the build on a typo.
   - **Pillar 5:**
     - EdDSA JWTs (10-minute lifetime) verified locally;
     - revocation within one token lifetime;
@@ -74,19 +83,17 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 | Deliverable | State |
 |---|---|
-| Pillar 3: React `<BrandList />` | Not started |
-| Pillar 4: SCSS source tree under `frontend/scss/` | Not started |
+| Pillar 4: SCSS source tree under `frontend/scss/` | Started: the layers, tokens, tools and the blocks `<BrandList />` uses (ADR 0030). Still to do: the other blocks, the comparison with `reference/theme.css`, and serving `theme.css` and the component from Django (template tag, `/brand/` page, Node build stage) |
 | Pillar 5: auth service (users, login, roles, JWKS) and the editor-only `PATCH /api/brands/<slug>/` | Not started |
 | Pillar 6: shared library with its own tests | Not started |
 | Docker Compose services for the auth service and its database | Not started (the main app's are done) |
-| README sections the challenge requires: getting a token, running the React component and the library tests, how a library version reaches each service | Not written. Each is added with the code it describes (running the main app, the import and the modeling decisions are written) |
+| README sections the challenge requires: getting a token, running the library tests, how a library version reaches each service | Not written. Each is added with the code it describes (running the main app, the import, the React component and the modeling decisions are written) |
 | CI | None |
 
 Still open, with options in the research notes:
-- how `<BrandList />` gets the list of industries for its filter (a second endpoint, or a list in the frontend; ADR 0027);
 - `PATCH` concurrency;
 - whether the auth service has an admin;
-- extra pnpm hardening.
+- Pillar 4's build and delivery (Sass CLI or Vite for `theme.css`, compiled in a Docker build stage).
 
 Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to it in `main-app/` in its own change after it clears (ADR 0014).
 
@@ -199,12 +206,70 @@ The response is DRF's page envelope. Each row has what a card needs:
 - **Cost.** A page is three queries whatever its size (count, brands, top reviews), plus one to check the industry slugs when filtering. Tests pin this.
 - **Compatibility.** The URL has no version. Changes are additive only; a breaking change would add `/api/v2/brands/` and keep this one until clients move.
 
-**The contract with the frontend** (ADR 0010): a pytest test writes real responses to [contracts/brand-list.example.json](contracts/brand-list.example.json). It has one case per shape the UI must handle: rows with every field set, an unrated brand, markup-like text in a snippet, first and last pages, an empty page, a 400 and a 404. The test fails when the API drifts from the committed file. After an intended change, run `make contracts` and commit the result. Pillar 3's Vitest test parses the same file with the Zod schema.
+**The contract with the frontend** (ADR 0010): a pytest test writes real responses to [contracts/brand-list.example.json](contracts/brand-list.example.json). It has one case per shape the UI must handle: rows with every field set, an unrated brand, markup-like text in a snippet, first and last pages, an empty page, a 400 and a 404. The test fails when the API drifts from the committed file. After an intended change, run `make contracts` and commit the result. `<BrandList />`'s Vitest test parses the same file with the Zod schema.
 
 **AI defaults accepted** (ADR 0027, items 7–9):
 - the query serializer is the only parser of `page_size`, so DRF can't clamp a value the serializer rejected;
 - ETag revalidation instead of a server-side cache;
 - no throttling in the app, because DRF's is per process and not a security control.
+
+## `<BrandList />` (Pillar 3)
+
+The React component in [frontend/src/brand-list/](frontend/src/brand-list/) lists brands from `GET /api/brands/`, with an industry filter, a sort control and pagination. It's client-only React 19, built with Vite 8 (ADR 0011).
+
+### Run it
+
+It needs Node 24.15+ and pnpm (the version is pinned in `package.json`), and the main app running with data (`make up` and `make import`; see [Run it](#run-it) above).
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm dev                      # http://localhost:5173, /api proxied to localhost:8000
+```
+
+The dev page ([frontend/index.html](frontend/index.html)) imitates the Django page that will host the component: a root element with `data-api-url`, and the industries in a `json_script` block. Mounting it on a real Django page comes with Pillar 4.
+
+### Tests and checks
+
+```bash
+cd frontend
+pnpm test                     # Vitest: contract, URL functions, component, mount, compiled CSS
+pnpm typecheck
+pnpm build                    # dist/ plus .vite/manifest.json for a Django template tag
+```
+
+The component tests drive it through roles and the keyboard, with `fetch` stubbed, so responses can arrive out of order. They cover loading, empty, error and Retry, the URL and Back button, a 404 past the last page, and focus, and run axe in each state. Colour contrast, target size and screen-reader announcements need a real browser; jsdom can't check them.
+
+### Compile the SCSS
+
+```bash
+cd frontend
+pnpm scss                     # scss/theme.scss → dist-css/theme.css
+```
+
+That runs `sass --no-source-map --no-error-css --fatal-deprecation=1.107.0`: every deprecation is an error, and a failed compile writes no CSS. The dev server compiles the same file with the same policy. `scss/theme.test.ts` checks the output: one layer-order statement, every rule in a cascade layer, prefixed BEM class names, raw colors only in tokens, no `!important`, flat selectors, and that a token typo fails the build (ADR 0023, ADR 0030).
+
+The tree has one folder per cascade layer: `tokens/` and `tools/` emit no CSS, then `base/`, `layout/` (`l-`), `components/` (`c-`) and `utilities/` (`u-`). A new component is one partial in `components/`, one `@layer components` block and one `@use` line in `components/_index.scss`.
+
+### How it works
+
+- **State lives in the URL** (`?industry=finance&industry=telecom&ordering=review_count&page=2`, the API's names), so a view can be shared and Back works. Filters and pages push a history entry; repeated sort changes share one. Unknown values are dropped and the URL corrected in place. Other parameters, such as `utm_source`, are kept.
+- **Fetching:** a change aborts the request in flight, so a slow old response can't replace a newer one. Responses are parsed with the Zod schema, and anything unexpected becomes the error state, with Retry.
+- **Loading:** skeleton cards on first load, then the previous results dimmed while the next ones load. One polite status region announces counts after a change ("3 brands. Telecom. Sorted by highest rated. Page 1 of 1."), not on page load.
+- **Accessibility:** native controls only: checkboxes in a fieldset inside `<search>`, a labelled `<select>`, links for pages. Focus stays put on filter and sort changes, and moves to the results heading when the focused button disappears (Clear filters, Retry, a page link). Each card is one tab stop.
+- **Responsive:** the grid reflows down to 320px without a media query, and the filters stack in narrow slots through a container query, so the component fits wherever Django puts it.
+
+**AI defaults accepted** (ADR 0028, items 6–14; ADR 0030, item 6):
+- `page_size=12` sent explicitly;
+- `aria-label` names on pagination links;
+- announcements start only after the first change;
+- a page past the end goes back to page 1;
+- a 10-second timeout, with one message per error kind;
+- stars drawn like the server's;
+- one stretched link per card, with the top review as a quote without its own link;
+- the build entry set under `build.rolldownOptions`;
+- full Zod rather than `zod/mini`;
+- accessibility fixes to the WordPress CSS: no forced root font size, a focus ring, motion only when not reduced, a 3:1 border on the select.
 
 ## The WordPress source site
 
@@ -250,7 +315,8 @@ Makefile                    # make targets
 db/dump.sql                 # seeded database snapshot
 db/initdb/                  # MariaDB init script for the read-only import user
 contracts/                  # API responses the frontend's schema is tested against
-main-app/                   # the Django app (Pillar 1)
+main-app/                   # the Django app (Pillars 1 and 2)
+frontend/                   # <BrandList /> (Pillar 3) and the SCSS tree (Pillar 4)
 scripts/seed.sh             # bootstrap script (install + plugins + seed)
 wp-content/plugins/         # WP default plugins + ACF + Yoast (committed for offline reproducibility)
 wp-content/mu-plugins/

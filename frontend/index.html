@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- Dev page only (`pnpm dev`): mimics the Django page that will host the
+     component, with /api proxied to the main app on localhost:8000. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Brands (dev)</title>
+  </head>
+  <body>
+    <main id="main" class="l-section">
+      <div class="l-container">
+        <h1>Brands</h1>
+        <div id="brand-list" data-api-url="/api/brands/"></div>
+      </div>
+    </main>
+    <!-- What Django's json_script will render; the five WordPress industries. -->
+    <script type="application/json" id="brand-list-industries">
+      [
+        { "slug": "finance", "name": "Finance" },
+        { "slug": "home-services", "name": "Home Services" },
+        { "slug": "insurance", "name": "Insurance" },
+        { "slug": "retail", "name": "Retail" },
+        { "slug": "telecom", "name": "Telecom" }
+      ]
+    </script>
+    <script type="module" src="/src/dev.ts"></script>
+  </body>
+</html>

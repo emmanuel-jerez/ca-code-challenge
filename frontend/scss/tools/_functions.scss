@@ -1,0 +1,48 @@
+// Token getters. Each returns the custom property, so the value can change at
+// runtime, but checks the name at build time: a typo stops the build instead
+// of emitting a var() that silently falls back.
+@use "sass:map";
+@use "../tokens" as tok;
+
+@function -token($category, $map, $name) {
+  @if not map.has-key($map, $name) {
+    @error "Unknown #{$category} token `#{$name}`. Known: #{map.keys($map)}";
+  }
+  @return var(--#{$category}-#{$name});
+}
+
+@function color($name) {
+  @return -token("color", tok.$color, $name);
+}
+
+@function font($name) {
+  @return -token("font", tok.$font, $name);
+}
+
+@function font-size($name) {
+  @return -token("font-size", tok.$font-size, $name);
+}
+
+@function line-height($name) {
+  @return -token("line-height", tok.$line-height, $name);
+}
+
+@function space($step) {
+  @return -token("space", tok.$space, $step);
+}
+
+@function radius($name) {
+  @return -token("radius", tok.$radius, $name);
+}
+
+@function shadow($name) {
+  @return -token("shadow", tok.$shadow, $name);
+}
+
+@function duration($name) {
+  @return -token("duration", tok.$duration, $name);
+}
+
+@function layout($name) {
+  @return -token("layout", tok.$layout, $name);
+}

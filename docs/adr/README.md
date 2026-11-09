@@ -35,6 +35,9 @@ original's status line (0018).
 | [0025](0025-shared-library-packaging.md) | Shared library packaging, name and upgrade path | Accepted |
 | [0026](0026-pillar-1-import-and-pages.md) | Pillar 1: industry FK, removals, sanitizing, writes, views | Accepted |
 | [0027](0027-pillar-2-listing-contract-details.md) | Pillar 2: top review, validation, errors, versioning, fixture, caching | Accepted |
+| [0028](0028-pillar-3-brandlist-component.md) | Pillar 3: `<BrandList />` props, URL state, fetching, controls, states | Accepted |
+| [0029](0029-pnpm-hardening.md) | pnpm hardening beyond the cooldown | Accepted |
+| [0030](0030-scss-tree-started-for-brandlist.md) | The SCSS tree, started early for `<BrandList />` | Accepted |
 
 Template: Status · Date · Context · Options considered · Decision · Consequences ·
 Revisit when · Sources.

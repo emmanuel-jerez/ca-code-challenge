@@ -1,0 +1,39 @@
+@use "sass:map";
+@use "../tokens" as tok;
+@use "functions" as fn;
+
+// Desktop first, matching the WordPress theme: styles for narrow viewports.
+// Range syntax avoids the 640/641px off-by-one.
+@mixin below($name) {
+  $width: map.get(tok.$breakpoints, $name);
+  @if not $width {
+    @error "Unknown breakpoint `#{$name}`. Known: #{map.keys(tok.$breakpoints)}";
+  }
+  @media (width <= $width) {
+    @content;
+  }
+}
+
+// The same for the nearest container with container-type set.
+@mixin container-below($name) {
+  $width: map.get(tok.$container-breakpoints, $name);
+  @if not $width {
+    @error "Unknown container breakpoint `#{$name}`. Known: #{map.keys(tok.$container-breakpoints)}";
+  }
+  @container (width <= #{$width}) {
+    @content;
+  }
+}
+
+// Motion only for people who haven't asked for less.
+@mixin motion-safe {
+  @media (prefers-reduced-motion: no-preference) {
+    @content;
+  }
+}
+
+// A visible keyboard focus indicator: 5.47:1 against white.
+@mixin focus-ring {
+  outline: 2px solid fn.color("primary");
+  outline-offset: 2px;
+}

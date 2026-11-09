@@ -1,0 +1,37 @@
+{
+  "name": "brandreviews-frontend",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": "^24.15.0 || >=26"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "scss": "sass --no-source-map --no-error-css --fatal-deprecation=1.107.0 scss/theme.scss dist-css/theme.css"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "axe-core": "^4.14.0",
+    "jsdom": "^30.1.3",
+    "postcss": "^8.5.32",
+    "sass": "1.107.1",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
+  }
+}

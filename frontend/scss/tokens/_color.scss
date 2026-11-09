@@ -1,0 +1,46 @@
+// Colors in two tiers. Primitives are private: components ask for a role
+// (t.color("text-muted")), never a raw value, so a theme can remap roles.
+@use "sass:map";
+
+// The WordPress theme's values; most are Tailwind v3 colors.
+$-palette: (
+  "white": #fff,
+  "paper": #f7f7f5, // WP page background; no Tailwind match
+  "ink": #1a1a1a, // WP text color; no Tailwind match
+  "gray-200": #e5e7eb,
+  "gray-300": #d1d5db,
+  "gray-500": #6b7280,
+  "gray-700": #374151,
+  "teal-700": #0f766e,
+  "teal-800": #115e59,
+  "emerald-50": #ecfdf5,
+  "emerald-100": #d1fae5,
+  "amber-500": #f59e0b,
+  "red-700": #b91c1c,
+);
+
+// A second theme passes roles to change, without forking this file:
+// @use "tokens" with ($color-overrides: ("primary": …));
+$color-overrides: () !default;
+
+$color: map.merge(
+  (
+    "background": map.get($-palette, "paper"),
+    "surface": map.get($-palette, "white"),
+    "text": map.get($-palette, "ink"),
+    "text-secondary": map.get($-palette, "gray-700"),
+    // 4.83:1 on surface, 4.51:1 on background: passes AA by a hair there.
+    "text-muted": map.get($-palette, "gray-500"),
+    // 1.24:1 on white: decoration only, never a control's only outline.
+    "border": map.get($-palette, "gray-200"),
+    "border-strong": map.get($-palette, "gray-300"),
+    "primary": map.get($-palette, "teal-700"),
+    "primary-strong": map.get($-palette, "teal-800"),
+    "primary-subtle": map.get($-palette, "emerald-50"),
+    "primary-subtle-border": map.get($-palette, "emerald-100"),
+    "on-primary": map.get($-palette, "white"),
+    "accent": map.get($-palette, "amber-500"),
+    "danger": map.get($-palette, "red-700"),
+  ),
+  $color-overrides
+);
