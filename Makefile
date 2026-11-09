@@ -3,7 +3,7 @@ COMPOSE := docker compose
 WPCLI := $(COMPOSE) run --rm wpcli
 AUTH_KEY := secrets/jwt_ed25519.pem
 
-.PHONY: help up down restart logs reset wp bootstrap dump status skills wp-import-user import import-dry-run test contracts auth-key auth-import auth-import-dry-run auth-map test-auth
+.PHONY: help up down restart logs reset wp bootstrap dump status skills wp-import-user import import-dry-run test contracts auth-key auth-import auth-import-dry-run auth-map test-auth test-shared check-shared
 
 help:
 	@echo "Targets:"
@@ -25,6 +25,8 @@ help:
 	@echo "  auth-import-dry-run  Same checks and counts, then roll back"
 	@echo "  auth-map        Write secrets/user-map.json (wp_user_id -> external_id)"
 	@echo "  test-auth       Run the auth service's tests (needs auth-db running)"
+	@echo "  test-shared     Run the shared library's tests, types and lint (no Django project)"
+	@echo "  check-shared    Check the library's version was bumped and both services re-locked"
 	@echo "  contracts       Regenerate contracts/ from the API after an intended change"
 
 # The auth service won't start without its signing key, so make it first.
@@ -99,3 +101,13 @@ auth-map:
 
 test-auth:
 	cd auth-service && uv run pytest
+
+test-shared:
+	cd shared-lib && uv run pytest && uv run mypy src tests && uv run ruff check && uv run ruff format --check
+
+# A library change must bump its version (ADR 0025); a bump makes each
+# service's `uv lock --check` fail until it re-locks.
+check-shared:
+	scripts/check-shared-lib-version.sh
+	cd main-app && uv lock --check
+	cd auth-service && uv lock --check
