@@ -5,14 +5,35 @@ type is written out here, and a model change can't silently change the
 contract the frontend's Zod schema checks (ADR 0010).
 """
 
+from typing import Any
+
+from django.utils.text import Truncator
 from rest_framework import serializers
 
-from catalog.models import Brand
+from catalog.api.query import TOP_REVIEWS
+from catalog.models import Brand, Review
+
+SNIPPET_LENGTH = 160
 
 
 class IndustrySerializer(serializers.Serializer[object]):
     slug = serializers.SlugField()
     name = serializers.CharField()
+
+
+class TopReviewSerializer(serializers.Serializer[Review]):
+    slug = serializers.SlugField()
+    title = serializers.CharField()
+    rating = serializers.IntegerField()
+    reviewer_name = serializers.CharField()
+    # Plain text, never HTML: clients render it as text, and Django
+    # autoescapes it.
+    snippet = serializers.SerializerMethodField()
+
+    def get_snippet(self, review: Review) -> str:
+        # Cut plain text only. Truncator's html=True is CVE-2026-1285's
+        # quadratic path.
+        return Truncator(review.content_text).chars(SNIPPET_LENGTH)
 
 
 class BrandCardSerializer(serializers.Serializer[Brand]):
@@ -28,5 +49,8 @@ class BrandCardSerializer(serializers.Serializer[Brand]):
     short_description = serializers.CharField()
     top_review = serializers.SerializerMethodField()
 
-    def get_top_review(self, brand: Brand) -> None:
-        return None
+    def get_top_review(self, brand: Brand) -> dict[str, Any] | None:
+        # Set by brand_cards()'s prefetch. getattr because the attribute
+        # exists only on brands loaded through it.
+        top: list[Review] = getattr(brand, TOP_REVIEWS)
+        return TopReviewSerializer(top[0]).data if top else None

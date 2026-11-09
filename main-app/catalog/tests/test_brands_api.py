@@ -1,18 +1,25 @@
 """GET /api/brands/: the brand listing behind <BrandList /> (ADRs 0022, 0027)."""
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from catalog.models import Brand, Industry, Status
+from catalog.models import Brand, Industry, Review, Status
 
 if TYPE_CHECKING:
     from django.test import Client
+    from pytest_django import DjangoAssertNumQueries
 
 type MakeBrand = Callable[..., Brand]
 type MakeIndustry = Callable[..., Industry]
+type MakeReview = Callable[..., Review]
+
+
+def day(n: int) -> datetime:
+    return datetime(2026, 1, n, tzinfo=UTC)
 
 
 def get_json(client: Client, query: str = "") -> Any:  # noqa: ANN401 - parsed JSON body
@@ -173,3 +180,70 @@ def test_a_page_past_the_end_is_a_404(client: Client, make_brand: MakeBrand) -> 
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Invalid page."}
+
+
+@pytest.mark.django_db
+def test_top_review_is_the_highest_rated_then_newest_then_last_added(
+    client: Client, make_brand: MakeBrand, make_review: MakeReview
+) -> None:
+    brand = make_brand()
+    make_review(brand=brand, slug="older-five", rating=5, published_at=day(1))
+    make_review(brand=brand, slug="newer-five", rating=5, published_at=day(2))
+    make_review(brand=brand, slug="newer-five-added-later", rating=5, published_at=day(2))
+    make_review(brand=brand, slug="newest-four", rating=4, published_at=day(3))
+    make_review(brand=brand, slug="draft-five", rating=5, published_at=day(4), status=Status.DRAFT)
+
+    [card] = get_json(client)["results"]
+
+    assert card["top_review"]["slug"] == "newer-five-added-later"
+
+
+@pytest.mark.django_db
+def test_top_review_snippet_is_plain_text_cut_to_160_characters(
+    client: Client, make_review: MakeReview
+) -> None:
+    text = "AT&T <b>is</b> fine. " + "More words here. " * 20
+    make_review(title="Fine", slug="fine", rating=4, reviewer_name="Sarah K.", content_text=text)
+
+    [card] = get_json(client)["results"]
+
+    snippet = card["top_review"].pop("snippet")
+    assert card["top_review"] == {
+        "slug": "fine",
+        "title": "Fine",
+        "rating": 4,
+        "reviewer_name": "Sarah K.",
+    }
+    # Markup-looking text stays text: clients render it as a text node.
+    assert snippet.startswith("AT&T <b>is</b> fine. More words here.")
+    assert len(snippet) == 160
+    assert snippet.endswith("…")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("brand_count", [1, 20])
+def test_a_page_costs_three_queries_however_many_brands_it_has(
+    client: Client,
+    make_brand: MakeBrand,
+    make_review: MakeReview,
+    django_assert_num_queries: DjangoAssertNumQueries,
+    brand_count: int,
+) -> None:
+    for _ in range(brand_count):
+        brand = make_brand()
+        make_review(brand=brand)
+        make_review(brand=brand)
+
+    # Count, page of brands with their industries, top reviews.
+    with django_assert_num_queries(3):
+        body = get_json(client, "?page_size=50")
+
+    assert all(row["top_review"] for row in body["results"])
+
+
+@pytest.mark.django_db
+def test_an_empty_listing_costs_one_query(
+    client: Client, django_assert_num_queries: DjangoAssertNumQueries
+) -> None:
+    with django_assert_num_queries(1):
+        get_json(client)

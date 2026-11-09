@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from django.db.models import F, OrderBy
+from django.db.models import F, OrderBy, Prefetch
 from rest_framework import serializers
 
-from catalog.models import Brand, Industry
+from catalog.models import Brand, Industry, Review
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -41,6 +41,9 @@ ORDER_BY: dict[Ordering, tuple[OrderBy | str, ...]] = {
     Ordering.REVIEW_COUNT_ASC: ("review_count", "name", "id"),
 }
 
+
+# The attribute the prefetch below sets on each brand: a list of 0 or 1 reviews.
+TOP_REVIEWS = "top_reviews"
 
 MAX_INDUSTRIES = 10
 DEFAULT_PAGE_SIZE = 12
@@ -94,8 +97,39 @@ class BrandListQuerySerializer(serializers.Serializer[BrandListQuery]):
 
 def brand_cards(query: BrandListQuery) -> QuerySet[Brand]:
     """Published brands for the listing, filtered and ordered as asked."""
-    brands = Brand.objects.published().select_related("industry")
+    brands = (
+        Brand.objects.published()
+        .select_related("industry")
+        # Card fields only, not the HTML bodies.
+        .only(
+            "slug",
+            "name",
+            "industry__slug",
+            "industry__name",
+            "average_rating",
+            "review_count",
+            "short_description",
+        )
+        .prefetch_related(Prefetch("reviews", queryset=_top_review(), to_attr=TOP_REVIEWS))
+    )
     if query.industries:
         # A foreign key, so the join can't duplicate brands (ADR 0026).
         brands = brands.filter(industry__slug__in=query.industries)
     return brands.order_by(*ORDER_BY[query.ordering])
+
+
+def _top_review() -> QuerySet[Review]:
+    """Each brand's top review: highest rating, then newest, then last added.
+
+    "Top" means best, so a 3-star brand still quotes its best review; the
+    alternative (the review closest to the brand's average) is in ADR 0027.
+    A sliced prefetch: Django fetches it for the whole page in one query,
+    with ROW_NUMBER() OVER (PARTITION BY brand_id ...).
+    """
+    return (
+        Review.objects.published()
+        .order_by("-rating", F("published_at").desc(nulls_last=True), "-id")
+        # Card fields only, not the HTML bodies. brand is needed to match
+        # reviews to brands.
+        .only("brand", "slug", "title", "rating", "reviewer_name", "content_text")[:1]
+    )
