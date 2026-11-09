@@ -10,7 +10,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 ## Project status (2026-11-09)
 
-**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) has every block, checked against `reference/theme.css`. The Docker build compiles both, and Django serves them: every page uses the theme, and `/brand/` hosts the component. The auth service (Pillar 5) runs in its own container with its own database: it imports the WordPress users, logs them in and publishes its signing key. The editor-only `PATCH` and the shared library (Pillar 6) are next.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
+**Pillars 1–3 (the Django app, its brand listing API and the React `<BrandList />`) are built, and the SCSS tree (Pillar 4) has every block, checked against `reference/theme.css`. The Docker build compiles both, and Django serves them: every page uses the theme, and `/brand/` hosts the component. The auth service (Pillar 5) runs in its own container with its own database: it imports the WordPress users, logs them in and publishes its signing key. The shared library (Pillar 6) holds the token contract: the auth service mints through it, and the main app uses it to protect the editor-only `PATCH /api/brands/<slug>/`.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
 
 ### Done
 
@@ -19,6 +19,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 - **Pillar 3: `<BrandList />`** in [frontend/](frontend/): the React component, its tests, a dev page, and the part of the SCSS tree it needs. See [`<BrandList />`](#brandlist--pillar-3) below.
 - **Pillar 4: the SCSS tree** in [frontend/scss/](frontend/scss/): tokens, tools and every block the pages and the component use, with a test that compares the output with `reference/theme.css`. The image's Node stage builds it and the component, and `/brand/` mounts the component. See [SCSS](#scss-pillar-4) below.
 - **Pillar 5: the auth service** in [auth-service/](auth-service/): users imported from WordPress, `reader` and `editor` roles, `POST /api/token/` and the JWKS. See [Auth service](#auth-service-pillar-5) below.
+- **Pillar 6: the shared library** in [shared-lib/](shared-lib/): `brandreviews-authz`, which verifies tokens and checks scopes and is installed into both services. It has its own tests, which need neither Django project. The main app's editor-only `PATCH /api/brands/<slug>/` uses it. See [Shared library](#shared-library-pillar-6) below.
 - **Agent guidance.**
   - [AGENTS.md](AGENTS.md) (loaded through `CLAUDE.md`) holds the project rules, each with its reason: the accepted stack, security rules, code style, and the auth and frontend rules.
   - Project skills live in `.agents/skills/`. Run `make skills` once per checkout so Claude Code can load them.
@@ -30,7 +31,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - one deeper note per pillar ([1](docs/research/pillar-1-django-backend.md), [2](docs/research/pillar-2-brands-api.md), [3](docs/research/pillar-3-brandlist-component.md), [4](docs/research/pillar-4-scss-architecture.md), [5](docs/research/pillar-5-auth-service.md), [6](docs/research/pillar-6-shared-library.md)).
 
   Every option is weighed by its security cost and its long-term stability, and data facts are measured from `db/dump.sql`.
-- **Decision records.** [docs/adr/](docs/adr/README.md) holds 34 records (0000–0033). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
+- **Decision records.** [docs/adr/](docs/adr/README.md) holds 35 records (0000–0034). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
   - **Stack:**
     - Django 5.2 LTS on Python 3.14, with a security floor (`>=5.2.18`);
     - DRF, JSON only;
@@ -90,20 +91,18 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - **Pillar 6:**
     - `brandreviews-authz`, built with `uv_build`;
     - installed by local path;
-    - a version bump required on every change.
+    - a version bump required on every change;
+    - this pull request is the library, both services adopting it, and the `PATCH`; the user map comes separately;
+    - the auth service mints through the library's claims, profile and JWK, and a contract test verifies what it mints;
+    - the `PATCH`: last write wins, with a log line naming the editor;
+    - a strict body (`short_description` only, 1–300 characters) and a minimal reply.
 
 ### Not done yet
 
 | Deliverable | State |
 |---|---|
-| The editor-only `PATCH /api/brands/<slug>/` in the main app | Not started. Built with the shared library (ADR 0033) |
-| Pillar 6: shared library with its own tests | Not started |
-| The main-app import reading the auth service's user map (ADR 0020) | Not started. `make auth-map` writes the map |
-| README sections the challenge requires: calling the protected endpoint, running the library tests, how a library version reaches each service | Not written. Each is added with the code it describes (getting a token is written) |
-| CI | None |
-
-Still open, with options in the research notes:
-- `PATCH` concurrency;
+| The main-app import reading the auth service's user map (ADR 0020) | Not started. `make auth-map` writes the map; it gets its own pull request (ADR 0034) |
+| CI | None. `make test-shared` and `make check-shared` are what it would run for the library |
 
 Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to it in `main-app/` and `auth-service/` in its own change after it clears (ADR 0014).
 
@@ -392,9 +391,39 @@ curl -s -X POST http://localhost:8001/api/token/ \
 - Every failure (unknown user, wrong password, inactive, no password set) returns the same `401 {"error": "invalid_credentials"}`.
 - Too many attempts return `429`: 20 per minute per address, 5 per minute per account.
 - The token is an EdDSA JWT (`typ: at+jwt`) that lives 10 minutes. It carries `sub` (the user's `external_id`), `scope`, `iss`, `aud: brands-api`, `client_id`, `iat`, `nbf`, `exp` and `jti`, and no username, email or role (ADR 0016).
-- The public key is at <http://localhost:8001/.well-known/jwks.json>. The main app will verify tokens locally against it and never call the auth service per request.
+- The public key is at <http://localhost:8001/.well-known/jwks.json>. The main app verifies tokens locally against it and never calls the auth service per request.
 
-The protected `PATCH /api/brands/<slug>/` comes with the shared library (Pillar 6).
+### Call the protected endpoint
+
+`PATCH /api/brands/<slug>/` changes a brand's short description, and only a token with the `brands:write` scope (the `editor` role) can call it. The imported `admin` is an editor.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8001/api/token/ \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "admin", "password": "<the password you set>"}' \
+  | python3 -c 'import json, sys; print(json.load(sys.stdin)["access_token"])')
+
+curl -s -X PATCH http://localhost:8000/api/brands/acme-insurance/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"short_description": "A general-lines insurer in 38 US states."}'
+```
+
+```json
+{"slug": "acme-insurance", "short_description": "A general-lines insurer in 38 US states."}
+```
+
+| Request | Response |
+|---|---|
+| No token, another scheme, or a bad or expired token | `401`, with `WWW-Authenticate: Bearer realm="api"` |
+| A valid token without `brands:write` (a `reader`) | `403` |
+| The auth service's keys can't be fetched | `503`: the token may be fine, so retry later (ADR 0016) |
+| An unknown or unpublished brand | `404`, but only after the token checks out |
+| A body that isn't exactly `{"short_description": "<1–300 characters>"}` | `400`, with DRF's field map |
+
+- **Verified locally.** The main app checks the token against the auth service's JWKS, cached for 5 minutes in each gunicorn worker, and never calls the auth service per request. Pages and `GET /api/brands/` work while the auth service is down.
+- **Last write wins.** Each edit is logged as `brand edited slug=… sub=… jti=…`, which is how an overwritten edit is traced (ADR 0034).
+- **Plain text.** The value is trimmed and never treated as HTML. The listing and the brand cards show it straight away.
 
 ### Roles
 
@@ -432,6 +461,61 @@ uv run ruff check . && uv run ruff format --check .
 One test imports the real WordPress users. It skips itself when MariaDB isn't reachable.
 
 **AI defaults accepted** (ADR 0033, items 9–18): a MariaDB view instead of column grants; the key generated in the image and owned by uid 10001; the key loaded in `wsgi.py`, so only the web server needs it; a re-import that follows logins and emails but never passwords or roles; a role-less user gets an empty-scope token; no `WWW-Authenticate` header on the 401; the throttle rates; the clickjacking middleware; the main app reading the user map deferred to Pillar 6.
+
+## Shared library (Pillar 6)
+
+[shared-lib/](shared-lib/) is `brandreviews-authz`, the token contract both services share (ADRs 0016, 0025, 0034). Its [README](shared-lib/README.md) lists each module and which service uses it.
+
+- **In:**
+  - the token profile (`alg`, `typ`, required claims);
+  - the claims dataclass;
+  - the scope names;
+  - the error types;
+  - the JWK format and the key providers;
+  - the verifier;
+  - a DRF authentication class and permission factory.
+- **Out:**
+  - signing (only the auth service may mint tokens);
+  - the role → scope map (the auth service's data);
+  - models and settings.
+- **The auth service** builds `AccessClaims`, signs `to_payload()` with the profile's `alg` and `typ`, and publishes `public_jwk()`. A contract test verifies what it mints with the library's `TokenVerifier`, so the issuer and the verifier can't drift apart unnoticed.
+- **The main app** subclasses `BearerAuthentication` to hand it a verifier built from its settings, and guards the `PATCH` with `require_scopes(scopes.BRANDS_WRITE)`.
+- **The core is framework-free.** Ruff bans Django and DRF imports outside `drf.py`, and a test imports the core in a fresh interpreter and checks neither loaded.
+
+### Run its tests
+
+No Django project, database or network is needed. The JWKS tests run a real HTTP server on `127.0.0.1`.
+
+```bash
+make test-shared            # pytest, mypy strict and Ruff, in shared-lib/
+```
+
+### How a new version reaches each service
+
+Both services install it from its directory as a uv path source (`{ path = "../shared-lib", editable = true }`), so uv never looks the name up on PyPI. Docker builds pass `shared-lib/` as a named build context and install it with `--no-editable`, so the runtime image holds a copy and no source.
+
+1. Change `shared-lib/src/`, add a `CHANGELOG.md` entry, and run `uv version --bump <patch|minor|major>` in `shared-lib/`.
+2. Run `uv lock` in `main-app/` and `auth-service/`. The version bump is what makes each service re-lock: `uv.lock` records a path source's version, not its code.
+3. Run both services' tests, and commit the library and both lockfiles together. `make check-shared` fails if `src/` changed without a bump, or if a lockfile is stale.
+4. Deploy each service on its own schedule. A breaking token change goes expand → migrate → contract: verifiers accept old and new, then the auth service switches, then, one token lifetime later, a major release drops the old shape. No step needs both services deployed together.
+
+Never run `uv lock --no-sources` or pip against the services: both would look the name up on PyPI, where anyone can register it (ADR 0025).
+
+**AI defaults accepted** (ADR 0034, items 5–18):
+- seven small modules, with no separate `permissions.py`;
+- one `TokenRejected` with a reason, instead of nine subclasses;
+- header checks before any key lookup;
+- loading the key set first to tell 503 from 401;
+- a table of malformed tokens instead of Hypothesis;
+- one dev group;
+- the DRF adapter's details: a plain `Bearer realm="api"` challenge and none on the 403;
+- the RFC 8037 test moved to the library;
+- a lazily built verifier, one per process;
+- `PATCH` edits published brands only, checks credentials before the lookup, and refuses numbers;
+- named build contexts with `--no-editable`;
+- the version-bump script;
+- version 1.0.0;
+- `<4` for DRF in the `[drf]` extra.
 
 ## The WordPress source site
 
@@ -510,6 +594,8 @@ make auth-import     # import WordPress users into the auth service (safe to re-
 make auth-import-dry-run  # same checks and counts, then roll back
 make auth-map   # write secrets/user-map.json for the main app
 make test-auth  # run the auth service's tests
+make test-shared     # run the shared library's tests, mypy and Ruff
+make check-shared    # check the library's version was bumped and both services re-locked
 ```
 
 ### Rebuilding the dump from scratch

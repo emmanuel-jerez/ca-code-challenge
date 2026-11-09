@@ -29,9 +29,13 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
 # Dependencies first, so code changes don't reinstall them. --locked installs
-# exactly what uv.lock pins, with hashes.
+# exactly what uv.lock pins, with hashes. The shared library comes from the
+# shared-lib build context, at the path uv.lock records (../shared-lib), and
+# is installed as a copy (--no-editable), so the runtime stage needs no
+# library source (ADR 0025).
 COPY pyproject.toml uv.lock .python-version ./
-RUN uv sync --locked --no-dev
+COPY --from=shared-lib . /shared-lib
+RUN uv sync --locked --no-dev --no-editable
 COPY . .
 # The build output where settings look for it (DJANGO_FRONTEND_DIR), then
 # hashed and compressed into STATIC_ROOT. The manifest stays in frontend/dist

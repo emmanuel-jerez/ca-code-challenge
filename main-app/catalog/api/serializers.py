@@ -58,3 +58,33 @@ class BrandCardSerializer(serializers.Serializer[Brand]):
         # Prefetch(to_attr=...) always stores there, a list of reviews.
         top: list[Review] = getattr(brand, TOP_REVIEWS)
         return TopReviewSerializer(top[0]).data if top else None
+
+
+class StrictCharField(serializers.CharField):
+    """A CharField that refuses numbers instead of turning 5 into "5"."""
+
+    def to_internal_value(self, data: object) -> str:
+        if not isinstance(data, str):
+            self.fail("invalid")
+        return super().to_internal_value(data)
+
+
+class BrandEditSerializer(serializers.Serializer[dict[str, str]]):
+    """The PATCH body: only the short description is editable (ADR 0034).
+
+    Plain text, never HTML: templates autoescape it and <BrandList /> renders
+    it as text, so nothing needs sanitizing.
+    """
+
+    # The column's limit. Trimmed (DRF's default), so "   " is blank.
+    short_description = StrictCharField(max_length=300)
+
+    def validate(self, attrs: dict[str, str]) -> dict[str, str]:
+        # DRF ignores unknown keys; refuse them, so a client that thinks it
+        # changed the name hears that it didn't.
+        unknown = set(self.initial_data) - set(self.fields)
+        if unknown:
+            raise serializers.ValidationError(
+                {name: "This field can't be edited." for name in sorted(unknown)}
+            )
+        return attrs

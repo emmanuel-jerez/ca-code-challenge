@@ -18,6 +18,10 @@ dependencies = [
     "djangorestframework>=3.18.3,<3.19",
     # Serves theme.css and the <BrandList /> build from the app (ADR 0008, 0031).
     "whitenoise>=6.12.0,<7",
+    # Verifies the auth service's tokens and checks scopes on the PATCH.
+    # Unversioned here: the path source below decides; uv.lock records its
+    # version (ADR 0025).
+    "brandreviews-authz[drf]",
 ]
 
 [dependency-groups]
@@ -36,6 +40,11 @@ dev = [
 # within days (AGENTS.md, ADR 0012). Never shorten or remove.
 exclude-newer = "7 days"
 package = false
+
+[tool.uv.sources]
+# A local path, so uv never looks the name up on PyPI, where anyone could
+# register it. Never run `uv lock --no-sources` or pip here (ADR 0025).
+brandreviews-authz = { path = "../shared-lib", editable = true }
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings_test"
@@ -67,8 +76,8 @@ extend-exclude = ["*/migrations/*"]
 select = ["E", "F", "W", "I", "B", "UP", "ANN", "S", "TC", "DJ", "PGH", "TID251"]
 
 [tool.ruff.lint.per-file-ignores]
-# assert is how pytest checks things.
-"**/tests/**" = ["S101"]
+# assert is how pytest checks things; tests sign tokens with literal ids.
+"**/tests/**" = ["S101", "S105", "S106"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # Django 6.x-only APIs; django-stubs describes 6.x and won't flag them (ADR 0009).

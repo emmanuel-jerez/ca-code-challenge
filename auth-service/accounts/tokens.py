@@ -2,17 +2,18 @@
 
 Only this service signs; the shared library only verifies (AGENTS.md).
 Token format and claims: ADR 0016 and docs/research/pillar-5-auth-service.md §7.
+The claim set, the token profile and the JWK format come from the shared
+library, which the main app verifies with; signing stays here (ADR 0034).
 """
 
-import base64
-import hashlib
-import json
 import secrets
 from dataclasses import dataclass
 from functools import cache
 from typing import TYPE_CHECKING
 
 import jwt
+from brandreviews_authz import AccessClaims, public_jwk
+from brandreviews_authz.profile import ALGORITHM, TOKEN_TYPE
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from django.conf import settings
@@ -27,23 +28,6 @@ if TYPE_CHECKING:
 
 class SigningKeyError(Exception):
     """The signing key is missing, unreadable, or not an Ed25519 private key."""
-
-
-def _b64url(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
-
-def _jwk_thumbprint(x: str) -> str:
-    """RFC 7638 thumbprint of an Ed25519 public key, used as its `kid`.
-
-    For OKP keys the hash covers exactly crv, kty and x, in that order, as
-    compact JSON (RFC 8037 §2). The result is always 43 base64url characters,
-    which gives verifiers a cheap format check.
-    """
-    canonical = json.dumps(
-        {"crv": "Ed25519", "kty": "OKP", "x": x}, separators=(",", ":"), sort_keys=True
-    )
-    return _b64url(hashlib.sha256(canonical.encode("ascii")).digest())
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,26 +46,10 @@ class SigningKey:
             raise SigningKeyError("the signing key is not an unencrypted PEM private key") from None
         if not isinstance(key, Ed25519PrivateKey):
             raise SigningKeyError("the signing key must be an Ed25519 private key")
-        x = _b64url(
-            key.public_key().public_bytes(
-                serialization.Encoding.Raw, serialization.PublicFormat.Raw
-            )
-        )
-        kid = _jwk_thumbprint(x)
-        return cls(
-            private_key=key,
-            kid=kid,
-            # `alg` and `use` pin the key to one algorithm and purpose
-            # (draft-ietf-oauth-rfc8725bis §3.1).
-            public_jwk={
-                "kty": "OKP",
-                "crv": "Ed25519",
-                "x": x,
-                "kid": kid,
-                "use": "sig",
-                "alg": "EdDSA",
-            },
-        )
+        # The library builds the JWK and its kid, so what we publish is
+        # exactly what the main app's verifier parses.
+        jwk = public_jwk(key.public_key())
+        return cls(private_key=key, kid=jwk["kid"], public_jwk=jwk)
 
 
 def signing_key() -> SigningKey:
@@ -120,21 +88,19 @@ def mint_access_token(
     key = signing_key()
     issued_at = int((now or timezone.now()).timestamp())
     lifetime: int = settings.ACCESS_TOKEN_LIFETIME_SECONDS
-    scope = " ".join(scopes)
-    jti = secrets.token_urlsafe(16)
-    claims = {
-        "iss": settings.JWT_ISSUER,
-        "aud": settings.JWT_AUDIENCE,
-        "sub": str(subject),
-        "client_id": settings.JWT_CLIENT_ID,
-        "scope": scope,
-        "iat": issued_at,
-        "nbf": issued_at,
-        "exp": issued_at + lifetime,
-        "jti": jti,
-    }
+    claims = AccessClaims(
+        subject=subject,
+        client_id=settings.JWT_CLIENT_ID,
+        scopes=frozenset(scopes),
+        token_id=secrets.token_urlsafe(16),
+        issued_at=issued_at,
+        expires_at=issued_at + lifetime,
+    )
+    payload = claims.to_payload(issuer=settings.JWT_ISSUER, audience=settings.JWT_AUDIENCE)
     # Always name the algorithm: PyJWT signs HS256 when it's omitted.
     token = jwt.encode(
-        claims, key.private_key, algorithm="EdDSA", headers={"typ": "at+jwt", "kid": key.kid}
+        payload, key.private_key, algorithm=ALGORITHM, headers={"typ": TOKEN_TYPE, "kid": key.kid}
     )
-    return AccessToken(token=token, scope=scope, expires_in=lifetime, jti=jti)
+    return AccessToken(
+        token=token, scope=str(payload["scope"]), expires_in=lifetime, jti=claims.token_id
+    )
