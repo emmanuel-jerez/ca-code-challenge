@@ -1,6 +1,6 @@
 # 0001. Django 5.2 LTS on Python 3.14
 
-- Status: Accepted
+- Status: Superseded by [0014](0014-raise-the-django-floor.md)
 - Date: 2026-11-09
 
 ## Context

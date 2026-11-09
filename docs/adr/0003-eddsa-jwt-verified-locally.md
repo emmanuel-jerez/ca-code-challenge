@@ -1,6 +1,6 @@
 # 0003. EdDSA JWTs, issued by the auth service and verified locally
 
-- Status: Accepted
+- Status: Superseded by [0016](0016-token-lifetime-revocation-and-outages.md)
 - Date: 2026-11-09
 
 ## Context

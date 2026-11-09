@@ -1,5 +1,7 @@
 # Release cooldown vs. fast security fixes
 
+> **Corrected later (2026-11-09).** Parts of this note were superseded by the pillar research: "5.2.19 is Moderate and GIS-only": two of its five 5.2 fixes are not GIS; see ADR 0018. The text below is kept as it was written.
+
 Researched 2026-11-09 for this repo's policy: uv `exclude-newer = "7 days"`, plus a per-package exception that needs the user's approval (`uv-only` skill), and pnpm's release-age delay (`pnpm-only` skill).
 Every tool behavior marked **(tested)** was reproduced locally with uv 0.13.6, in a throwaway project in the scratchpad that resolves Django. Nothing was installed.
 Claims marked *(secondary)* come only from press or blog coverage, not from the source that owns them.

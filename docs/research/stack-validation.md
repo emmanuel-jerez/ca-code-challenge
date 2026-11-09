@@ -1,5 +1,7 @@
 # Stack validation: compatibility, open items, unchosen pieces, weak spots
 
+> **Corrected later (2026-11-09).** Parts of this note were superseded by the pillar research: the Django floor in §5 and the Sass compile command in §3.5: see ADRs 0014 and 0023. The text below is kept as it was written.
+
 Researched 2026-11-09. This note builds on `stack-decisions.md`, `typing-and-validation.md` and `best-practices-2026.md`, and does not repeat them.
 **Cooldown cut-off:** a version counts as safe only if it was uploaded **before 2026-11-02**.
 Sources:

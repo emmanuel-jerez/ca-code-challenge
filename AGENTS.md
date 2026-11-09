@@ -21,6 +21,8 @@ docs/adr/ (index in docs/adr/README.md). Research behind them: docs/research/.
   each lost, the decision, trade-offs, and when to revisit. Readers then don't
   re-litigate what was already weighed (ADR 0000).
 - Never rewrite a past decision to fit today. Supersede it with a new record that links back.
+  A factual error that doesn't change the decision goes in a correction record linked from
+  the original's status line (0018), so the original still shows what was known then.
 - Decision records live in docs/adr/NNNN-title.md. README.md summarizes and links them
   (the challenge requires a README decisions section, including accepted AI defaults).
 - Every rule in this file or a skill states its reason.
@@ -30,18 +32,25 @@ docs/adr/ (index in docs/adr/README.md). Research behind them: docs/research/.
 - Tests: `tdd`, then `test-audit`. Library docs: `find-docs`. Docs upkeep: `docs-maintenance`.
 
 ## Stack (accepted 2026-11-09; reasons in the ADRs)
-- Django 5.2 LTS on Python 3.14 (0001). DRF `>=3.18.3,<3.19` (0002).
+- Django 5.2 LTS on Python 3.14, `>=5.2.18,<5.3`; the floor follows each security release
+  once it clears the cooldown, so it never admits a known-vulnerable patch (0014).
+- DRF `>=3.18.3,<3.19`, JSON parser and renderer only, because most 2026 DRF and Django
+  advisories sat in parsers and renderers we don't use (0015).
 - Postgres 18 per service, psycopg 3 (0006). PyMySQL for the read-only WP import (0007).
-- PyJWT[crypto] `>=2.15.1,<3`, cryptography `>=50.0.2`. Never python-jose or simplejwt (0003).
-- nh3 `>=0.3.7,<0.4` for WP HTML (0004). CSP from a custom middleware, Report-Only
-  first; 5.2 has no built-in CSP (0005).
-- gunicorn + whitenoise on `python:3.14-slim-trixie` pinned by digest (0008).
+- PyJWT[crypto] `>=2.15.1,<3`, cryptography `>=50.0.2`. Never python-jose or simplejwt (0016).
+- nh3 `>=0.3.7,<0.4` for WP HTML (0004, 0018). CSP from a custom middleware, Report-Only
+  first, `script-src 'self'` and `style-src 'self'`; 5.2 has no built-in CSP (0017).
+- gunicorn + whitenoise on `python:3.14-slim-trixie` pinned by digest; whitenoise only in
+  a service that serves static files (0008, 0018).
 - mypy strict + django-stubs + djangorestframework-stubs; Ruff ANN, S, TC, DJ, PGH,
   TID251 (0009). TID251 bans Django 6.x-only imports, which the stubs don't flag.
 - API contract: pytest writes a JSON fixture that a Vitest test parses with the Zod
   schema. No OpenAPI generator (0010).
 - Frontend: React 19 + Vite 8, client-only (no Next.js/RSC), TypeScript 6 strict,
-  `sass`, Vitest + Testing Library + axe-core, Node ≥ 24.15 (0011).
+  `sass` pinned exactly to 1.107.1, Vitest + Testing Library + axe-core, Node ≥ 24.15
+  (0011, 0023).
+- Shared library `brandreviews-authz` in `shared-lib/`, built with `uv_build`; every change
+  bumps its version, because a path source's lock records the version, not the code (0025).
 
 ## Security (non-negotiable)
 - Versions younger than 7 days are held back: uv `exclude-newer = "7 days"`, pnpm
@@ -72,14 +81,20 @@ docs/adr/ (index in docs/adr/README.md). Research behind them: docs/research/.
 ## Auth and the shared library
 - The auth service owns users, passwords and roles; the main app stores only an
   external user id. That's the service boundary the challenge asks for.
-- Tokens: EdDSA JWT, ≤ 15 min, `typ: at+jwt`, published via JWKS. The main app verifies
-  locally against a cached JWKS with `algorithms=["EdDSA"]` and checks iss, aud, exp,
-  nbf. PyJWT doesn't check `typ`, so check it explicitly (0003).
+- Tokens: EdDSA (Ed25519 keys only), 10-minute lifetime, `typ: at+jwt`, published via
+  JWKS. The main app verifies locally against a cached JWKS with `algorithms=["EdDSA"]`
+  and requires and checks iss, aud, exp, nbf (PyJWT skips absent claims otherwise). PyJWT
+  doesn't check `typ`, so check it explicitly, accepting `at+jwt` or `application/at+jwt`
+  case-insensitively as RFC 9068 requires (0016).
+- Revocation and role changes take effect within the token lifetime; the main app never
+  calls the auth service per request. When no signing key can be fetched, return 503,
+  not 401, so clients don't discard valid tokens (0016).
 - Authorize by scope claims, not role names, so roles can change without code changes.
 - Shared library: verification, claims dataclass, JWKS client, permission checks, thin
   DRF adapter. Never signing (only the auth service may mint tokens), models or
   settings. Core tests run with plain pytest. Installed by local path, which blocks
-  look-alike packages on PyPI. Breaking changes go expand → migrate → contract.
+  look-alike packages on PyPI. Breaking changes go expand → migrate → contract. Never run
+  `uv lock --no-sources` or pip against the services: both look the name up on PyPI (0025).
 
 ## Backend rules not covered by django-lts
 - Sanitize WP HTML with nh3; never allow `style`, `svg`, `math` or `animate*` (open
@@ -94,4 +109,9 @@ docs/adr/ (index in docs/adr/README.md). Research behind them: docs/research/.
   with getByRole, axe and a keyboard pass.
 - SCSS: `@use`/`@forward` only (`@import` is being removed). Tokens are Sass maps
   emitted as CSS custom properties; breakpoints stay Sass variables (custom properties
-  don't work in media queries). BEM naming, cascade order via `@layer`.
+  don't work in media queries). BEM with `l-`/`c-`/`u-` prefixes so a class names its
+  layer; cascade order via `@layer`. `<BrandList />` uses a global partial so server and
+  React cards share one block. Compile with `--fatal-deprecation=1.107.0 --no-error-css`;
+  that and a compiled-CSS test replace stylelint, whose SCSS setup pulls a hijacked
+  dependency chain (0023).
+- No inline `style` attributes in templates or components: the CSP forbids them (0017).
