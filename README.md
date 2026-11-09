@@ -10,10 +10,11 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 ## Project status (2026-11-09)
 
-**Planning is done and no application code exists yet.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
+**Pillar 1 (the Django app) is built; Pillars 2–6 are not started.** Every design decision is researched, decided and recorded before code is written, so each line can be traced to a reason.
 
 ### Done
 
+- **Pillar 1: Django app** in [main-app/](main-app/): models, the re-runnable WordPress import, and the homepage, brand and review pages. See [Main app](#main-app-pillar-1) below.
 - **Agent guidance.**
   - [AGENTS.md](AGENTS.md) (loaded through `CLAUDE.md`) holds the project rules, each with its reason: the accepted stack, security rules, code style, and the auth and frontend rules.
   - Project skills live in `.agents/skills/`. Run `make skills` once per checkout so Claude Code can load them.
@@ -25,7 +26,7 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - one deeper note per pillar ([1](docs/research/pillar-1-django-backend.md), [2](docs/research/pillar-2-brands-api.md), [3](docs/research/pillar-3-brandlist-component.md), [4](docs/research/pillar-4-scss-architecture.md), [5](docs/research/pillar-5-auth-service.md), [6](docs/research/pillar-6-shared-library.md)).
 
   Every option is weighed by its security cost and its long-term stability, and data facts are measured from `db/dump.sql`.
-- **Decision records.** [docs/adr/](docs/adr/README.md) holds 26 records (0000–0025). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
+- **Decision records.** [docs/adr/](docs/adr/README.md) holds 27 records (0000–0026). Each gives the context, the options that lost and why, and when to revisit. Records are never rewritten: changed decisions are superseded, and factual errors are corrected in a linked record. Decided so far:
   - **Stack:**
     - Django 5.2 LTS on Python 3.14, with a security floor (`>=5.2.18`);
     - DRF, JSON only;
@@ -40,7 +41,10 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
   - **Pillar 1:**
     - brand ratings computed from reviews and stored at import, with WordPress's (wrong) value kept for audit;
     - a thin `Reviewer` model linked to the auth service later;
-    - postmeta triaged into typed columns plus two SEO fields.
+    - postmeta triaged into typed columns plus two SEO fields;
+    - industry as a foreign key, and the import stops on anything but one per brand;
+    - rows gone from WordPress marked `removed`, never deleted;
+    - HTML sanitized at import, with the raw source kept.
   - **Pillar 2:**
     - repeated `industry` keys;
     - a closed `ordering` enum that always ends in `id`;
@@ -65,14 +69,13 @@ This repository holds a WordPress → Django migration challenge ([CHALLENGE.md]
 
 | Deliverable | State |
 |---|---|
-| Pillar 1: Django app (models, re-runnable WordPress import, homepage, `/brand/<slug>/`, `/review/<slug>/`) | Not started |
 | Pillar 2: `GET /api/brands/` (filter, sort, paginate) | Not started |
 | Pillar 3: React `<BrandList />` | Not started |
 | Pillar 4: SCSS source tree under `frontend/scss/` | Not started |
 | Pillar 5: auth service (users, login, roles, JWKS) and the editor-only `PATCH /api/brands/<slug>/` | Not started |
 | Pillar 6: shared library with its own tests | Not started |
-| Docker Compose services for the two Django projects and their databases | Not started |
-| README sections the challenge requires: running each part, getting a token, running the import and the library tests, how a library version reaches each service, and a half-page on modeling decisions and AI defaults | Not written. Each is added with the code it describes |
+| Docker Compose services for the auth service and its database | Not started (the main app's are done) |
+| README sections the challenge requires: getting a token, running the React component and the library tests, how a library version reaches each service | Not written. Each is added with the code it describes (running the main app, the import and the modeling decisions are written) |
 | CI | None |
 
 Still open, with options in the research notes:
@@ -82,7 +85,67 @@ Still open, with options in the research notes:
 - whether the auth service has an admin;
 - extra pnpm hardening.
 
-Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to it once the services have lockfiles (ADR 0014).
+Time-bound: Django 5.2.19 clears the cooldown on 2026-11-10. Raise the floor to it in `main-app/` in its own change after it clears (ADR 0014).
+
+## Main app (Pillar 1)
+
+The Django app in [main-app/](main-app/) replaces the WordPress site: models, a re-runnable import from WordPress's MariaDB, and three server-rendered pages at the same paths as WordPress's permalinks.
+
+### Run it
+
+```bash
+cp .env.example .env        # once; the defaults work locally
+make up                     # WordPress, MariaDB, the main app and its Postgres
+make import                 # copy WordPress content into the main app
+```
+
+Then open <http://localhost:8000>, <http://localhost:8000/brand/acme-insurance/> or <http://localhost:8000/review/online-portal-feels-like-2010/>.
+
+On a MariaDB volume created before this change, the read-only import user doesn't exist yet. Run `make wp-import-user` once, or `make reset` to start from the dump again.
+
+### The WordPress import
+
+`make import` runs `manage.py import_wp` in a one-off container. It's the only container that gets the WordPress credentials.
+
+- **Re-running is safe.** Every row upserts on its WordPress id, and rows whose stored values already match aren't written. A second run reports `0 created, 0 updated, N unchanged`.
+- **Nothing is half-written.** Every row is checked before the first write. The run is one transaction behind a Postgres advisory lock, so a bad row or a second concurrent run changes nothing.
+- **Preview first** with `make import-dry-run`: the same checks and counts, then a rollback.
+- **Deleted or unpublished in WordPress?** The row takes WordPress's status (or `removed`) and disappears from the site. It's never deleted.
+- **Editors' changes survive.** `short_description` is set only when a brand is first imported.
+- **Least privilege.** The importer's MariaDB user can read the five content tables and only the `ID` and `display_name` columns of `wp_users`, so it can't read password hashes or emails.
+- **At 100x** (about 7,000 posts) the same design holds. Reads are keyset-paginated inside one consistent snapshot. At larger scale, per-batch lookups and bulk upserts would replace the in-memory comparison (ADR 0026).
+
+To run it from the host instead (MariaDB is bound to `127.0.0.1:3307`):
+
+```bash
+cd main-app
+DJANGO_SECRET_KEY=dev MAIN_DB_PASSWORD=brandreviews WP_IMPORT_DB_PASSWORD=wp_import \
+  uv run manage.py import_wp --dry-run
+```
+
+### Tests and checks
+
+The tests use the compose Postgres on `127.0.0.1:5433`, so start it first (`make up`, or `docker compose up -d main-db`).
+
+```bash
+cd main-app
+uv run pytest               # or `make test` from the repo root
+uv run mypy .
+uv run ruff check . && uv run ruff format --check .
+```
+
+One test runs the real import against the WordPress MariaDB, checking the counts and the computed ratings. It skips itself when MariaDB isn't reachable.
+
+### Modeling decisions
+
+- **Four tables, not posts + postmeta:** `Industry`, `Brand`, `Review` and `Reviewer`, with real foreign keys and check constraints. Every imported row keeps its WordPress id under a unique constraint.
+- **Rating: stored and derived.** `average_rating` and `review_count` are computed from published reviews and stored at the end of each import, so sorting is cheap (ADR 0019). WordPress's own `average_rating` is kept as `legacy_average_rating` for audit, because it was too high for 4 of 5 brands (Acme: 4.2 in WordPress, 3.92 from its 12 reviews).
+- **Reviewers:** a thin `Reviewer` row (WordPress user id, display name, and a nullable auth-service id for later), plus name and location snapshots on each review. The same person reviewed from different cities (ADR 0020).
+- **Postmeta:** 10 rows per brand, not ~30. Four ACF values and two Yoast fields became typed columns, and the ACF field-key pointers were dropped. An untriaged key stops the import (ADR 0021).
+- **Industry is a foreign key.** Every brand has exactly one, and the import stops if that changes (ADR 0026).
+- **Content:** sanitized once at import with nh3. The raw HTML is kept for re-cleaning, and templates can't use `|safe` (a test enforces it). `website_url` must be http(s), checked in Python and by a database constraint.
+
+**AI defaults accepted** (ADR 0026, items 5–10): skipping unchanged rows by comparing stored values instead of a hash column; any bad row stops the run instead of being skipped; function views; no `/brand/`, `/review/` or `/about/` pages yet, so the nav shows only Home; no `django.contrib.auth` or admin in the main app.
 
 ## The WordPress source site
 
@@ -103,6 +166,7 @@ After ~20 seconds:
 - WP admin:    <http://localhost:8080/wp-admin> (`admin` / `admin`)
 - phpMyAdmin:  <http://localhost:8081>
 - REST root:   <http://localhost:8080/wp-json/wp/v2/>
+- Main app:    <http://localhost:8000> (empty until `make import`)
 
 The DB is auto-imported from `db/dump.sql` on first boot. No manual setup required for candidates.
 
@@ -110,10 +174,13 @@ The DB is auto-imported from `db/dump.sql` on first boot. No manual setup requir
 
 | Service     | Image                            | Port  | Purpose                                |
 |-------------|----------------------------------|-------|----------------------------------------|
-| `db`        | `mariadb:11`                     | -     | Database; auto-imports `db/dump.sql`   |
+| `db`        | `mariadb:11`                     | 127.0.0.1:3307 | Database; auto-imports `db/dump.sql` and creates the read-only import user |
 | `wordpress` | `wordpress:6.9-php8.3-apache`    | 8080  | WP + Apache + PHP                      |
 | `wpcli`     | `wordpress:cli-php8.3`           | -     | Helper for re-seeding / dumping        |
 | `phpmyadmin`| `phpmyadmin:5`                   | 8081  | Optional DB browser                    |
+| `main-db`   | `postgres:18-alpine` (by digest) | 127.0.0.1:5433 | The main app's own database |
+| `main-app`  | built from `main-app/`           | 8000  | Django app (gunicorn), non-root, read-only filesystem |
+| `wp-import` | built from `main-app/`           | -     | One-off WordPress import (`make import`) |
 
 ### What's committed
 
@@ -122,6 +189,8 @@ docker-compose.yml          # the stack
 .env.example                # config defaults
 Makefile                    # make targets
 db/dump.sql                 # seeded database snapshot
+db/initdb/                  # MariaDB init script for the read-only import user
+main-app/                   # the Django app (Pillar 1)
 scripts/seed.sh             # bootstrap script (install + plugins + seed)
 wp-content/plugins/         # WP default plugins + ACF + Yoast (committed for offline reproducibility)
 wp-content/mu-plugins/
@@ -136,7 +205,7 @@ WP core files and the default themes (e.g. twentytwentyfour) live inside the `wp
 ### Make targets
 
 ```
-make up         # start db + wordpress + phpmyadmin
+make up         # start db + wordpress + phpmyadmin + main-db + main-app
 make down       # stop containers (keeps volumes)
 make reset      # stop AND wipe volumes (next 'up' re-imports dump.sql)
 make logs       # tail wordpress + db
@@ -144,6 +213,10 @@ make wp ARGS="plugin list"   # run wp-cli inside the stack
 make bootstrap  # full re-seed: WP core install + plugin install + content seed
 make dump       # export the current DB to db/dump.sql
 make status     # show running services
+make import     # import WordPress content into the main app (safe to re-run)
+make import-dry-run  # same checks and counts, then roll back
+make wp-import-user  # create the read-only import user on an existing db volume
+make test       # run the main app's tests
 ```
 
 ### Rebuilding the dump from scratch
