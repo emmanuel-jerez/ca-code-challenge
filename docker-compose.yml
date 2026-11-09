@@ -115,7 +115,14 @@ services:
 
   # Main Django app (Pillar 1). Applies migrations, then serves with gunicorn.
   main-app:
-    build: ./main-app
+    build: &main-app-build
+      context: ./main-app
+      # The Dockerfile's Node stage copies the frontend source from here
+      # (ADR 0031). Every service that builds this image must pass it:
+      # without it, COPY --from=frontend-src would look for an image of
+      # that name on Docker Hub.
+      additional_contexts:
+        frontend-src: ./frontend
     image: brandreviews/main-app:local
     depends_on:
       main-db:
@@ -145,7 +152,7 @@ services:
   # One-off WordPress import: `make import`. The only service that gets the
   # WordPress credentials, so the web container can never reach that database.
   wp-import:
-    build: ./main-app
+    build: *main-app-build
     image: brandreviews/main-app:local
     profiles: ["tools"]
     depends_on:
