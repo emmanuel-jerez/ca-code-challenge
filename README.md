@@ -353,7 +353,8 @@ WordPress's seven inline styles became modifiers (`l-section--alt`, `c-hero--com
 - whitenoise's defaults, with no Brotli;
 - no `modulepreload` links;
 - a `<noscript>` note on `/brand/`;
-- every industry in the filter, even one with no brands.
+- every industry in the filter, even one with no brands;
+- Zod without its JIT compiler, so parsing never compiles code from strings, which the CSP forbids.
 
 ## The WordPress source site
 

@@ -80,6 +80,15 @@ request. Facts that shaped them:
   The page runs one query. The nav gains a "Brands" link, marked
   `aria-current` on that page, and the home page's "Featured Brands" gains
   WordPress's "All brands →" link.
+- **Zod runs `jitless`.** A browser check of `/brand/` found five
+  report-only CSP violations per page view: Zod 4 compiles object parsers
+  with `new Function`, after probing with `Function("")`. Under the enforced
+  policy it would catch the error and fall back, so nothing would break, but
+  every view would log or report violations and bury real ones.
+  `z.config({ jitless: true })` runs in `schema.ts` before any schema is
+  built. Parsing a dozen brands without the JIT costs nothing noticeable.
+  The alternative, allowing `'unsafe-eval'`, was rejected: it would let any
+  injected string run as script.
 - **Tests** use plain `StaticFilesStorage` and no `STATIC_ROOT`, so they
   need neither `collectstatic` nor a frontend build. The page tests write
   their own manifest.
