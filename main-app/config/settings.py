@@ -38,6 +38,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "config.csp.ContentSecurityPolicyMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -92,6 +93,8 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", default=False)
+# Served over HTTPS whenever the redirect is on, so the cookie can require it.
+CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
 if env_bool("DJANGO_SECURE_PROXY_SSL_HEADER", default=False):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
