@@ -1,26 +1,22 @@
-"""The signing key, its kid, and the JWKS that publishes it (ADR 0016)."""
+"""The signing key and the JWKS that publishes it (ADR 0016).
 
-import base64
+The JWK format and its kid are the shared library's, tested there against RFC 8037.
+"""
+
 from typing import TYPE_CHECKING
 
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from accounts.tokens import SigningKey, SigningKeyError
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from django.test import Client
     from pytest_django import Settings
-
-# RFC 8037 Appendix A.1 (the private key's d), A.2 (its public x) and A.3
-# (that key's RFC 7638 thumbprint): an independent source for the expected values.
-RFC8037_D = "nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A"
-RFC8037_X = "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
-RFC8037_KID = "kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k"
 
 
 def pem(key: Ed25519PrivateKey | Ed448PrivateKey) -> bytes:
@@ -29,20 +25,6 @@ def pem(key: Ed25519PrivateKey | Ed448PrivateKey) -> bytes:
         serialization.PrivateFormat.PKCS8,
         serialization.NoEncryption(),
     )
-
-
-def test_the_public_jwk_and_its_thumbprint_kid_match_the_rfc_8037_example() -> None:
-    raw = base64.urlsafe_b64decode(RFC8037_D + "=")
-    key = SigningKey.from_pem(pem(Ed25519PrivateKey.from_private_bytes(raw)))
-
-    assert key.public_jwk == {
-        "kty": "OKP",
-        "crv": "Ed25519",
-        "x": RFC8037_X,
-        "kid": RFC8037_KID,
-        "use": "sig",
-        "alg": "EdDSA",
-    }
 
 
 def test_only_ed25519_keys_can_sign() -> None:

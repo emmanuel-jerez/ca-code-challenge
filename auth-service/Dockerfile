@@ -9,9 +9,13 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
 # Dependencies first, so code changes don't reinstall them. --locked installs
-# exactly what uv.lock pins, with hashes.
+# exactly what uv.lock pins, with hashes. The shared library comes from the
+# shared-lib build context, at the path uv.lock records (../shared-lib), and
+# is installed as a copy (--no-editable), so the runtime stage needs no
+# library source (ADR 0025).
 COPY pyproject.toml uv.lock .python-version ./
-RUN uv sync --locked --no-dev
+COPY --from=shared-lib . /shared-lib
+RUN uv sync --locked --no-dev --no-editable
 COPY . .
 
 FROM python:3.14-slim-trixie@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f

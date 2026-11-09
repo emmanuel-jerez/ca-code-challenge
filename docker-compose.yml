@@ -180,8 +180,12 @@ services:
   # access tokens. The main app doesn't depend_on it: pages and the listing
   # must work while it's down (ADR 0016).
   auth-service:
-    build:
+    build: &auth-build
       context: ./auth-service
+      # The shared library, at the path uv.lock records (ADR 0025). Every
+      # service that builds this image must pass it.
+      additional_contexts:
+        shared-lib: ./shared-lib
     image: brandreviews/auth-service:local
     depends_on:
       auth-db:
@@ -217,8 +221,7 @@ services:
   # One-off WordPress user import: `make auth-import`. The only auth container
   # with WordPress credentials, and it gets no signing key: it never signs.
   auth-import:
-    build:
-      context: ./auth-service
+    build: *auth-build
     image: brandreviews/auth-service:local
     profiles: ["tools"]
     depends_on:

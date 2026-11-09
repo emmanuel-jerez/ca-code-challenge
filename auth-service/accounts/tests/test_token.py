@@ -1,11 +1,13 @@
 """POST /api/token/: credentials in, an EdDSA access token out (ADRs 0016, 0033)."""
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import jwt
 import pytest
+from brandreviews_authz import AccessClaims, StaticKeyProvider, TokenVerifier, scopes
 
+from accounts.models import Scope
 from conftest import PASSWORD
 
 if TYPE_CHECKING:
@@ -27,20 +29,16 @@ def login(client: Client, username: str, password: str = PASSWORD) -> TestRespon
     )
 
 
-def verify(client: Client, token: str) -> dict[str, Any]:
-    """Verify the way a resource server would: only from the published JWKS."""
-    keys = jwt.PyJWKSet.from_dict(client.get("/.well-known/jwks.json").json())
-    header = jwt.get_unverified_header(token)
-    key = next(k for k in keys.keys if k.key_id == header["kid"])
-    claims: dict[str, Any] = jwt.decode(
-        token,
-        key,
-        algorithms=["EdDSA"],
-        audience="brands-api",
-        issuer="http://auth-service:8000",
-        options={"require": ["iss", "aud", "sub", "exp", "iat", "nbf", "jti"]},
-    )
-    return claims
+def verify(client: Client, token: str) -> AccessClaims:
+    """Verify exactly as the main app does: the shared library, keys from our JWKS.
+
+    The contract test: if what this service mints and what the library
+    accepts ever drift apart, this fails here, not in production.
+    """
+    published = client.get("/.well-known/jwks.json").json()["keys"]
+    keys = StaticKeyProvider(jwt.PyJWK(jwk).key for jwk in published)
+    verifier = TokenVerifier(keys, issuer="http://auth-service:8000", audience="brands-api")
+    return verifier.verify(token)
 
 
 def test_an_editor_gets_a_token_carrying_its_scopes(
@@ -56,10 +54,10 @@ def test_an_editor_gets_a_token_carrying_its_scopes(
     assert body["expires_in"] == 600
     assert body["scope"] == "brands:read brands:write"
     claims = verify(client, body["access_token"])
-    assert claims["sub"] == str(editor.external_id)
-    assert claims["scope"] == "brands:read brands:write"
-    assert claims["client_id"] == "brands-cli"
-    assert claims["exp"] - claims["iat"] == 600
+    assert claims.subject == editor.external_id
+    assert claims.scopes == {"brands:read", "brands:write"}
+    assert claims.client_id == "brands-cli"
+    assert claims.expires_at - claims.issued_at == 600
     assert jwt.get_unverified_header(body["access_token"])["typ"] == "at+jwt"
 
 
@@ -115,7 +113,7 @@ def test_a_user_without_a_role_gets_a_token_that_grants_nothing(
     response = login(client, make_user().username)
 
     assert response.status_code == 200
-    assert verify(client, response.json()["access_token"])["scope"] == ""
+    assert verify(client, response.json()["access_token"]).scopes == frozenset()
 
 
 def test_malformed_bodies_are_rejected_before_any_lookup(client: Client) -> None:
@@ -167,3 +165,9 @@ def test_a_spoofed_forwarded_for_header_does_not_reset_the_address_limit(
     ]
 
     assert statuses[-1] == 429
+
+
+def test_the_seeded_scopes_are_the_ones_the_library_names() -> None:
+    # The main app requires scopes by the library's names; a scope seeded
+    # under another spelling would be a silent 403 for every editor.
+    assert set(Scope.objects.values_list("name", flat=True)) == scopes.ALL
