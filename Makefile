@@ -2,7 +2,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 WPCLI := $(COMPOSE) run --rm wpcli
 
-.PHONY: help up down restart logs reset wp bootstrap dump status
+.PHONY: help up down restart logs reset wp bootstrap dump status skills
 
 help:
 	@echo "Targets:"
@@ -14,6 +14,7 @@ help:
 	@echo "  bootstrap       One-shot: install WP core + plugins + seed all content"
 	@echo "  dump            Export current DB to db/dump.sql"
 	@echo "  status          Show running services"
+	@echo "  skills          Link .agents/skills into .claude/skills for Claude Code"
 
 up:
 	$(COMPOSE) up -d db wordpress phpmyadmin
@@ -41,3 +42,6 @@ dump:
 
 status:
 	$(COMPOSE) ps
+
+skills:
+	./scripts/link-agent-skills.sh
