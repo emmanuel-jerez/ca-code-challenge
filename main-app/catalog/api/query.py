@@ -70,12 +70,12 @@ class BrandListQuerySerializer(serializers.Serializer[BrandListQuery]):
     from_query_params().
     """
 
-    # Repeated keys (?industry=a&industry=b), meaning any of them. Each value
-    # is checked against the database in validate_industry, so a malformed
-    # slug is just an unknown one, and every error stays one message.
-    industry = serializers.ListField(
-        child=serializers.CharField(allow_blank=True), max_length=MAX_INDUSTRIES, default=list
-    )
+    # Repeated keys (?industry=a&industry=b), meaning any of them. No child
+    # field: DRF's default passes each value through as sent (query values
+    # are always strings), and validate_industry checks it against the
+    # database. A per-item field would trim values and key its errors by
+    # position ({"industry": {"0": [...]}}), breaking the one-message shape.
+    industry = serializers.ListField(max_length=MAX_INDUSTRIES, default=list)
     ordering = serializers.ChoiceField(choices=list(Ordering), default=Ordering.RATING_DESC)
     page_size = serializers.IntegerField(
         min_value=1, max_value=MAX_PAGE_SIZE, default=DEFAULT_PAGE_SIZE
@@ -89,15 +89,17 @@ class BrandListQuerySerializer(serializers.Serializer[BrandListQuery]):
         the default. A plain dict holding only the keys actually sent makes
         "" a bad value (400) instead.
         """
-        data: dict[str, object] = {"industry": params.getlist("industry")}
-        for name in ("ordering", "page_size"):
-            if name in params:
-                data[name] = params[name]
+        # A repeated scalar parameter uses its last value, as Django's
+        # QueryDict does everywhere.
+        data: dict[str, object] = {name: params[name] for name in params}
+        data["industry"] = params.getlist("industry")
         return cls(data=data)
 
     def validate_industry(self, slugs: list[str]) -> frozenset[str]:
         wanted = frozenset(slugs)
-        known = set(Industry.objects.filter(slug__in=wanted).values_list("slug", flat=True))
+        # Postgres rejects NUL in a string parameter, and no slug contains one.
+        searchable = {slug for slug in wanted if "\x00" not in slug}
+        known = set(Industry.objects.filter(slug__in=searchable).values_list("slug", flat=True))
         # Sorted so the message names the same slug every time.
         unknown = sorted(wanted - known)
         if unknown:

@@ -134,6 +134,9 @@ def test_an_industry_without_published_brands_gives_an_empty_page(
         ("?industry=nope", 'Unknown industry: "nope".'),
         ("?industry=Not_A_Slug!", 'Unknown industry: "Not_A_Slug!".'),
         ("?industry=", 'Unknown industry: "".'),
+        # Checked as sent: no trimming, and a NUL byte never reaches SQL.
+        ("?industry=%20insurance", 'Unknown industry: " insurance".'),
+        ("?industry=a%00b", 'Unknown industry: "a\x00b".'),
         (
             "?industry=" + "&industry=".join(f"i{n}" for n in range(11)),
             "Ensure this field has no more than 10 elements.",
