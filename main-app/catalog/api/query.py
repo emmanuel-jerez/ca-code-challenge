@@ -43,6 +43,8 @@ ORDER_BY: dict[Ordering, tuple[OrderBy | str, ...]] = {
 
 
 MAX_INDUSTRIES = 10
+DEFAULT_PAGE_SIZE = 12
+MAX_PAGE_SIZE = 50
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +54,7 @@ class BrandListQuery:
     # Empty means every industry.
     industries: frozenset[str]
     ordering: Ordering
+    page_size: int
 
 
 class BrandListQuerySerializer(serializers.Serializer[BrandListQuery]):
@@ -67,6 +70,9 @@ class BrandListQuerySerializer(serializers.Serializer[BrandListQuery]):
         child=serializers.SlugField(), max_length=MAX_INDUSTRIES, default=list
     )
     ordering = serializers.ChoiceField(choices=list(Ordering), default=Ordering.RATING_DESC)
+    page_size = serializers.IntegerField(
+        min_value=1, max_value=MAX_PAGE_SIZE, default=DEFAULT_PAGE_SIZE
+    )
 
     def validate_industry(self, slugs: list[str]) -> frozenset[str]:
         wanted = frozenset(slugs)
@@ -79,7 +85,11 @@ class BrandListQuerySerializer(serializers.Serializer[BrandListQuery]):
 
     def to_query(self) -> BrandListQuery:
         data = self.validated_data
-        return BrandListQuery(industries=data["industry"], ordering=Ordering(data["ordering"]))
+        return BrandListQuery(
+            industries=data["industry"],
+            ordering=Ordering(data["ordering"]),
+            page_size=data["page_size"],
+        )
 
 
 def brand_cards(query: BrandListQuery) -> QuerySet[Brand]:

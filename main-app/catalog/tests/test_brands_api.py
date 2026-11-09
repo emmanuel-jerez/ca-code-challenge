@@ -138,3 +138,38 @@ def test_bad_industry_filters_are_a_400(
 
     assert response.status_code == 400
     assert response.json() == {"industry": [error]}
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("ranked_brands")
+def test_pages_follow_page_size_and_link_to_each_other(client: Client) -> None:
+    first = get_json(client, "?ordering=review_count&page_size=3")
+    second = get_json(client, "?ordering=review_count&page_size=3&page=2")
+
+    assert first["count"] == second["count"] == 4
+    assert [row["slug"] for row in first["results"]] == ["c", "a", "d"]
+    assert [row["slug"] for row in second["results"]] == ["b"]
+    assert first["previous"] is None
+    assert first["next"] == (
+        "http://testserver/api/brands/?ordering=review_count&page=2&page_size=3"
+    )
+    assert second["next"] is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("page_size", ["0", "51", "abc"])
+def test_a_page_size_outside_1_to_50_is_a_400(client: Client, page_size: str) -> None:
+    response = client.get(f"/api/brands/?page_size={page_size}")
+
+    assert response.status_code == 400
+    assert list(response.json()) == ["page_size"]
+
+
+@pytest.mark.django_db
+def test_a_page_past_the_end_is_a_404(client: Client, make_brand: MakeBrand) -> None:
+    make_brand()
+
+    response = client.get("/api/brands/?page=2")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Invalid page."}

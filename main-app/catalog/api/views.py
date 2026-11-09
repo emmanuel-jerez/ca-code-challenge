@@ -17,7 +17,15 @@ if TYPE_CHECKING:
 
 
 class BrandPagination(PageNumberPagination):
-    page_size = 12
+    """DRF's page-number envelope, with the page size already validated.
+
+    page_size_query_param stays unset: BrandListQuerySerializer is the only
+    parser of ?page_size, so a value it rejects can't be clamped or
+    replaced here. ?page stays DRF's: a page past the end is a 404.
+    """
+
+    def __init__(self, page_size: int) -> None:
+        self.page_size = page_size
 
 
 @api_view(["GET"])
@@ -28,8 +36,9 @@ class BrandPagination(PageNumberPagination):
 def brand_list(request: Request) -> Response:
     params = BrandListQuerySerializer(data=request.query_params)
     params.is_valid(raise_exception=True)
-    brands = brand_cards(params.to_query())
-    paginator = BrandPagination()
+    query = params.to_query()
+    brands = brand_cards(query)
+    paginator = BrandPagination(query.page_size)
     # None only when a paginator has no page size; this one always has one.
     page = paginator.paginate_queryset(brands, request) or []
     cards = ListSerializer[list[Brand]](page, child=BrandCardSerializer())
