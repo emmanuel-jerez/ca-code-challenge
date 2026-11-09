@@ -29,7 +29,7 @@ original's status line (0018).
 | [0019](0019-brand-rating-computed-from-reviews.md) | Brand rating computed from reviews, stored at import | Accepted |
 | [0020](0020-reviewer-identity-across-services.md) | Reviewer identity across the two services | Accepted |
 | [0021](0021-postmeta-triage.md) | Postmeta triage | Accepted |
-| [0022](0022-brand-listing-query-parameters.md) | Brand listing query parameters | Accepted |
+| [0022](0022-brand-listing-query-parameters.md) | Brand listing query parameters | Accepted (refined in 0027) |
 | [0023](0023-scss-naming-and-brandlist-styling.md) | SCSS naming, `<BrandList />` styling, Sass as the linter | Accepted |
 | [0024](0024-imported-passwords-and-hashing.md) | Imported passwords and password hashing | Accepted |
 | [0025](0025-shared-library-packaging.md) | Shared library packaging, name and upgrade path | Accepted |

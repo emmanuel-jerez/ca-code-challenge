@@ -56,7 +56,8 @@ for review in the Pillar 2 pull request.
    so `page_size=5.0` would pass the query serializer and then silently fall
    back to 12 in the paginator. The query serializer is the only parser, and
    the paginator receives the validated number. The contract ADR 0022 gives
-   (1–50, default 12, a 400 otherwise, DRF's envelope) is unchanged.
+   (1–50, default 12, a 400 otherwise, DRF's envelope) is unchanged; 0022's
+   status line links here.
 8. **Caching.**
    - `cache_page` or the cache middleware. Rejected: seven data-exposure CVEs
      in 5.2.14–5.2.19.
@@ -75,9 +76,12 @@ for review in the Pillar 2 pull request.
 - **Snippet:** `content_text` cut with `Truncator.chars(160)`, ending in "…"
   when cut. It's plain text on the wire; clients render it as text. Truncator's
   `html=True` (CVE-2026-1285) is never used.
-- **Validation:** an unknown industry slug is a 400 naming it. A known
-  industry with no published brands is a 200 with an empty page. Unknown
-  parameter names are ignored.
+- **Validation:** an unknown industry slug is a 400 naming it; a malformed
+  or empty one is reported the same way. A known industry with no published
+  brands is a 200 with an empty page. An empty `ordering` or `page_size`
+  (`?ordering=`) is a bad value, a 400, not a request for the default.
+  Unknown parameter names are ignored. A `page` that isn't a positive whole
+  number, or is past the end, keeps DRF's 404 (research §3.4).
 - **Errors:** DRF's default bodies. A 400 is a map from parameter name to a
   list of messages; a 404 is `{"detail": "…"}`.
 - **Versioning:** none. Compatibility policy: changes to `/api/brands/` are
