@@ -1,0 +1,22 @@
+# Supply-chain settings (ADR 0012, ADR 0029). Each line says why it is here.
+
+# Hold back releases younger than 7 days: most malicious versions are pulled
+# within days (ADR 0012).
+minimumReleaseAge: 10080
+# Fail instead of installing a too-new version when nothing old enough fits.
+# pnpm 12 makes this the default once the age is set; stated for readers.
+minimumReleaseAgeStrict: true
+# Fail if the registry can't date a release, rather than letting it through.
+minimumReleaseAgeIgnoreMissingTime: false
+# Fail if a release has weaker trust evidence (trusted publisher > provenance >
+# none) than an earlier one of the same package.
+trustPolicy: no-downgrade
+# No git or tarball sources for transitive dependencies.
+blockExoticSubdeps: true
+# Unreviewed install scripts fail the install.
+strictDepBuilds: true
+allowBuilds:
+  # Optional native watcher for sass; not needed to compile.
+  '@parcel/watcher': false
+  # macOS-only optional file watcher.
+  fsevents: false
