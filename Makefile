@@ -2,7 +2,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 WPCLI := $(COMPOSE) run --rm wpcli
 
-.PHONY: help up down restart logs reset wp bootstrap dump status skills wp-import-user import import-dry-run test
+.PHONY: help up down restart logs reset wp bootstrap dump status skills wp-import-user import import-dry-run test contracts
 
 help:
 	@echo "Targets:"
@@ -19,6 +19,7 @@ help:
 	@echo "  import          Import WordPress content into the main app (safe to re-run)"
 	@echo "  import-dry-run  Same checks and counts, then roll back"
 	@echo "  test            Run the main app's tests (needs main-db running)"
+	@echo "  contracts       Regenerate contracts/ from the API after an intended change"
 
 up:
 	$(COMPOSE) up -d db wordpress phpmyadmin main-db main-app
@@ -62,3 +63,6 @@ import-dry-run:
 
 test:
 	cd main-app && uv run pytest
+
+contracts:
+	cd main-app && UPDATE_CONTRACTS=1 uv run pytest catalog/tests/test_brand_list_contract.py

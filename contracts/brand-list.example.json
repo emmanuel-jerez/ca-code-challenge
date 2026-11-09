@@ -1,0 +1,104 @@
+{
+  "empty_page": {
+    "body": {
+      "count": 0,
+      "next": null,
+      "previous": null,
+      "results": []
+    },
+    "query": "?industry=retail",
+    "status": 200
+  },
+  "first_page": {
+    "body": {
+      "count": 3,
+      "next": "http://testserver/api/brands/?ordering=review_count&page=2&page_size=2",
+      "previous": null,
+      "results": [
+        {
+          "average_rating": null,
+          "industry": {
+            "name": "Insurance",
+            "slug": "insurance"
+          },
+          "name": "New Brand",
+          "review_count": 0,
+          "short_description": "",
+          "slug": "new-brand",
+          "top_review": null
+        },
+        {
+          "average_rating": 4.0,
+          "industry": {
+            "name": "Finance",
+            "slug": "finance"
+          },
+          "name": "PrimePath Bank",
+          "review_count": 1,
+          "short_description": "A regional retail bank with 220 branches.",
+          "slug": "primepath-bank",
+          "top_review": {
+            "rating": 4,
+            "reviewer_name": "Roberto G.",
+            "slug": "better-than-atts-support",
+            "snippet": "Support beat AT&T's <by far> & the app works.",
+            "title": "Better than AT&T's support"
+          }
+        }
+      ]
+    },
+    "query": "?ordering=review_count&page_size=2",
+    "status": 200
+  },
+  "invalid_query": {
+    "body": {
+      "industry": [
+        "Unknown industry: \"nope\"."
+      ],
+      "ordering": [
+        "\"name\" is not a valid choice."
+      ],
+      "page_size": [
+        "Ensure this value is greater than or equal to 1."
+      ]
+    },
+    "query": "?ordering=name&page_size=0&industry=nope",
+    "status": 400
+  },
+  "last_page": {
+    "body": {
+      "count": 3,
+      "next": null,
+      "previous": "http://testserver/api/brands/?ordering=review_count&page_size=2",
+      "results": [
+        {
+          "average_rating": 3.5,
+          "industry": {
+            "name": "Insurance",
+            "slug": "insurance"
+          },
+          "name": "Acme Insurance Co.",
+          "review_count": 2,
+          "short_description": "An agent-led insurer for auto, home and umbrella cover.",
+          "slug": "acme-insurance",
+          "top_review": {
+            "rating": 5,
+            "reviewer_name": "Sarah K.",
+            "slug": "acme-review-1",
+            "snippet": "Added an umbrella policy in fifteen minutes. Added an umbrella policy in fifteen minutes. Added an umbrella policy in fifteen minutes. Added an umbrella policy…",
+            "title": "Acme review 1"
+          }
+        }
+      ]
+    },
+    "query": "?ordering=review_count&page_size=2&page=2",
+    "status": 200
+  },
+  "page_not_found": {
+    "body": {
+      "detail": "Invalid page."
+    },
+    "query": "?page=9",
+    "status": 404
+  }
+}
