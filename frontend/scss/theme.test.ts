@@ -50,9 +50,15 @@ function layersAround(node: Node): string[] {
   return layers;
 }
 
-/** Class, attribute and pseudo-class count, ignoring :where() (which adds none). */
+/**
+ * Class, attribute and pseudo-class count. :where() adds none; :not(), :is()
+ * and :has() add only their argument's, so the wrapper itself isn't counted.
+ */
 function specificity(selector: string): { ids: number; classes: number } {
-  const counted = selector.replace(/:where\([^)]*\)/g, '').replace(/::[a-z-]+/g, '');
+  const counted = selector
+    .replace(/:where\([^)]*\)/g, '')
+    .replace(/:(not|is|has)\(/g, '(')
+    .replace(/::[a-z-]+/g, '');
   return {
     ids: (counted.match(/#[\w-]+/g) ?? []).length,
     classes: (counted.match(/\.[\w-]+|\[[^\]]*\]|:[a-z-]+/g) ?? []).length,
