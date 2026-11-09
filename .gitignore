@@ -14,3 +14,5 @@ interviewer/
 
 # Personal Claude Code settings (shared ones live in .claude/settings.json).
 .claude/settings.local.json
+# Signing keys (make auth-key). Never commit a private key.
+secrets/
