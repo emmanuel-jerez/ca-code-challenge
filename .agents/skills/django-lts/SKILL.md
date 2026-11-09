@@ -9,7 +9,7 @@ description: Use when writing, reviewing, configuring, or upgrading Django or Py
 
 | | Version | Pin | Why |
 |---|---|---|---|
-| Django | 5.2 LTS | `Django>=5.2.8,<5.3` | Current LTS. Security fixes until April 2028. 5.2.8 is the first patch release that supports Python 3.14. |
+| Django | 5.2 LTS | `Django>=5.2.18,<5.3` | Current LTS. Security fixes until April 2028. The floor is the newest security release past the cooldown, so it never admits a known-vulnerable patch (ADR 0014). Raise it to 5.2.19 once that clears on 2026-11-10 15:22 UTC. |
 | Python | 3.14 | `requires-python = ">=3.14,<3.15"` | Python has no LTS. 3.14 is the newest version Django 5.2 supports. |
 
 Keep Django on the newest 5.2.x patch release, subject to the `uv-only`
@@ -65,9 +65,10 @@ Fix a warning where it is raised. Do not silence it.
 - **Sorting and filtering.** Map each public query parameter to an allow-list
   of fields or expressions, and reject anything else with a 400 error. Never
   pass request input to `order_by()`, `values()`, `annotate()` or `alias()`
-  names, or `extra()`. Three Django ORM SQL injection CVEs in February 2026
-  came in through `order_by` and aliases. See
-  `docs/research/best-practices-2026.md`.
+  names, or `extra()`. Django ORM SQL injection CVEs in December 2025 and
+  February 2026 came in through `order_by()` (CVE-2026-1312) and alias names
+  built from request input (CVE-2025-13372, CVE-2026-1287). See ADR 0014 and
+  `docs/research/pillar-2-brands-api.md` §3.3.
 - **Raw SQL.** Avoid `raw()`, `extra()` and cursors. If one is unavoidable,
   pass values as query parameters, never with string formatting.
 - **WordPress content is untrusted.** `post_content` and ACF values from the

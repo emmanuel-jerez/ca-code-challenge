@@ -1,5 +1,7 @@
 # Stack decisions: CSP, API framework and tokens, HTML sanitizer
 
+> **Corrected later (2026-11-09).** Parts of this note were superseded by the pillar research: §2a (DRF release and advisory counts) and §2b (`typ` values, stale JWKS): see ADRs 0015 and 0016. The text below is kept as it was written.
+
 Researched 2026-11-09 for Django 5.2 LTS on Python 3.14 with uv `exclude-newer = "7 days"`.
 Anything released after **2026-11-02** is still inside the cooldown and can't be pinned yet.
 Version, date and classifier data comes from the PyPI JSON API (`https://pypi.org/pypi/<name>/json`).

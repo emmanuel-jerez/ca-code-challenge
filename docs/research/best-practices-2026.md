@@ -1,5 +1,7 @@
 # Best Practices for the Challenge (seen from late 2026)
 
+> **Corrected later (2026-11-09).** Parts of this note were superseded by the pillar research: §0.8, §4–8 (SQL injection CVE summary, `aria-busy`, stylelint, token checks, Argon2): see the "Corrections" sections of the `pillar-*.md` notes. The text below is kept as it was written.
+
 Research notes for the WP → Django challenge. Each section covers the long-standing practice, the case for it, its weak spots, and what changed over the last year as AI-written code became normal and supply chain attacks grew. Each section closes with a **Defend it** line: a short answer you can give on the call.
 
 > Confidence notes. Figures marked *(secondary)* come from vendor blogs or news reports, not primary sources. Check them before you quote them on the call. Everything else comes from official docs, standards drafts or primary write-ups.

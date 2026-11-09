@@ -1,6 +1,6 @@
 # 0008. gunicorn + whitenoise on python:3.14-slim-trixie
 
-- Status: Accepted (gunicorn approved by the user without a Python 3.14 classifier)
+- Status: Accepted (gunicorn approved by the user without a Python 3.14 classifier; facts corrected in [0018](0018-factual-corrections-to-0004-0008-0012.md))
 - Date: 2026-11-09
 
 ## Context

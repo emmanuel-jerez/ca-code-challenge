@@ -1,6 +1,6 @@
 # 0002. Django REST Framework for the API
 
-- Status: Accepted
+- Status: Superseded by [0015](0015-drf-json-only.md)
 - Date: 2026-11-09
 
 ## Context

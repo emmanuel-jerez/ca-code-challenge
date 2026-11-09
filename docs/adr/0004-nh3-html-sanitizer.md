@@ -1,6 +1,6 @@
 # 0004. nh3 for sanitizing WordPress HTML
 
-- Status: Accepted
+- Status: Accepted (facts corrected in [0018](0018-factual-corrections-to-0004-0008-0012.md))
 - Date: 2026-11-09
 
 ## Context

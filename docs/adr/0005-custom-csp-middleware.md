@@ -1,6 +1,6 @@
 # 0005. A custom middleware for Content Security Policy
 
-- Status: Accepted
+- Status: Superseded by [0017](0017-csp-covers-styles-and-the-vite-build.md)
 - Date: 2026-11-09
 
 ## Context
