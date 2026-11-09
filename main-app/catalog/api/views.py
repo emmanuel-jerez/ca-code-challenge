@@ -42,7 +42,7 @@ class BrandPagination(PageNumberPagination):
 @authentication_classes([])
 @permission_classes([AllowAny])
 def brand_list(request: Request) -> Response:
-    params = BrandListQuerySerializer(data=request.query_params)
+    params = BrandListQuerySerializer.from_query_params(request.query_params)
     params.is_valid(raise_exception=True)
     query = params.to_query()
     brands = brand_cards(query)

@@ -7,7 +7,7 @@ is an expression written in this file, so client input never names a column
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from django.db.models import F, OrderBy, Prefetch
 from rest_framework import serializers
@@ -16,6 +16,7 @@ from catalog.models import Brand, Industry, Review
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
+    from django.http import QueryDict
 
 
 class Ordering(StrEnum):
@@ -61,21 +62,38 @@ class BrandListQuery:
 
 
 class BrandListQuerySerializer(serializers.Serializer[BrandListQuery]):
-    """Checks the query string before anything touches the database.
+    """Checks the query string before the listing query is built.
 
     Parameters it doesn't know are ignored, so a newer client still works
     against an older server during a rollout. Known ones are strict: a bad
-    value is a 400, never a silent fallback.
+    value is a 400, never a silent fallback. Build it with
+    from_query_params().
     """
 
-    # Repeated keys (?industry=a&industry=b), meaning any of them.
+    # Repeated keys (?industry=a&industry=b), meaning any of them. Each value
+    # is checked against the database in validate_industry, so a malformed
+    # slug is just an unknown one, and every error stays one message.
     industry = serializers.ListField(
-        child=serializers.SlugField(), max_length=MAX_INDUSTRIES, default=list
+        child=serializers.CharField(allow_blank=True), max_length=MAX_INDUSTRIES, default=list
     )
     ordering = serializers.ChoiceField(choices=list(Ordering), default=Ordering.RATING_DESC)
     page_size = serializers.IntegerField(
         min_value=1, max_value=MAX_PAGE_SIZE, default=DEFAULT_PAGE_SIZE
     )
+
+    @classmethod
+    def from_query_params(cls, params: QueryDict) -> Self:
+        """Validate a query string, treating an empty value as a value.
+
+        Given a QueryDict, DRF reads "?ordering=" as "not sent" and applies
+        the default. A plain dict holding only the keys actually sent makes
+        "" a bad value (400) instead.
+        """
+        data: dict[str, object] = {"industry": params.getlist("industry")}
+        for name in ("ordering", "page_size"):
+            if name in params:
+                data[name] = params[name]
+        return cls(data=data)
 
     def validate_industry(self, slugs: list[str]) -> frozenset[str]:
         wanted = frozenset(slugs)

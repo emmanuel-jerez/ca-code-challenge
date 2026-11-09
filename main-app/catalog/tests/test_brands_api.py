@@ -94,11 +94,13 @@ def test_orderings(client: Client, query: str, expected: list[str]) -> None:
 
 
 @pytest.mark.django_db
-def test_an_unknown_ordering_is_a_400(client: Client) -> None:
-    response = client.get("/api/brands/?ordering=name")
+# An empty value is a bad value too, not a request for the default.
+@pytest.mark.parametrize("ordering", ["name", ""])
+def test_an_unknown_ordering_is_a_400(client: Client, ordering: str) -> None:
+    response = client.get(f"/api/brands/?ordering={ordering}")
 
     assert response.status_code == 400
-    assert response.json() == {"ordering": ['"name" is not a valid choice.']}
+    assert response.json() == {"ordering": [f'"{ordering}" is not a valid choice.']}
 
 
 @pytest.mark.django_db
@@ -130,6 +132,8 @@ def test_an_industry_without_published_brands_gives_an_empty_page(
     [
         # A stale or mistyped link: say so rather than show "no brands".
         ("?industry=nope", 'Unknown industry: "nope".'),
+        ("?industry=Not_A_Slug!", 'Unknown industry: "Not_A_Slug!".'),
+        ("?industry=", 'Unknown industry: "".'),
         (
             "?industry=" + "&industry=".join(f"i{n}" for n in range(11)),
             "Ensure this field has no more than 10 elements.",
@@ -164,7 +168,7 @@ def test_pages_follow_page_size_and_link_to_each_other(client: Client) -> None:
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("page_size", ["0", "51", "abc"])
+@pytest.mark.parametrize("page_size", ["0", "51", "abc", ""])
 def test_a_page_size_outside_1_to_50_is_a_400(client: Client, page_size: str) -> None:
     response = client.get(f"/api/brands/?page_size={page_size}")
 
